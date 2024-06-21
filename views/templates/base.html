@@ -1,0 +1,47 @@
+{{ define "base" }}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="shortcut icon" href="/static/img/favicon.ico" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Indie+Flower&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <title>{{ template "title" }} - Quicknotes</title>
+</head>
+
+<body>
+  <header>
+    <div class="wrapper">
+      <h1><a href="/">Quicknotes</a></h1>
+    </div>
+    <nav>
+      <div class="wrapper">
+        <a href="/">Home</a>
+        <a href="/note/new">Nova Nota</a>
+      </div>
+    </nav>
+  </header>
+  <main>
+    <div class="wrapper">
+      {{ template "main" . }}
+    </div>
+  </main>
+  <footer>
+    &copy;2024 por Rudson Alves. Todos os diretios reservados
+  </footer>
+  <script src="/static/js/jquery.min.js"></script>
+  <script src="/static/js/index.js"></script>
+  {{ block "script" . }}
+  {{ end }}
+</body>
+
+</html>
+{{ end }}

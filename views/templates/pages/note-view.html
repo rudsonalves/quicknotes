@@ -1,0 +1,34 @@
+{{ define "title" }}Visualização de uma Nota {{ .Id }}{{ end }}
+
+{{ define "main" }}
+<div class="note-view">
+  <h3>{{ .Title }}</h3>
+  <p>{{ .Content }}</p>
+
+  <div class="buttons">
+    <button data-noteid="{{.Id}}" class="info" type="button">Editar</button>
+    <button data-noteid="{{.Id}}" class="danger" type="button">Deletar</button>
+  </div>
+</div>
+
+{{ end }}
+
+{{ define "script" }}
+<script>
+  $("button.danger").click(function () {
+    if (window.confirm("Tem certeza que deseja excluir a nota?")) {
+      $.ajax({
+        url: "/note/" + $(this).data("noteid"),
+        type: "DELETE",
+        success: function () {
+          window.location.href = "/"
+        }
+      })
+    }
+  })
+
+  $("button.info").click(function () {
+    window.location.href = "/note/edit/" + $(this).data("noteid")
+  })
+</script>
+{{ end }}

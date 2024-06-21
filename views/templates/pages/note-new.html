@@ -1,0 +1,54 @@
+{{define "title"}}Nova anotação{{end}}
+
+{{define "main"}}
+<h1>Nova Nota</h1>
+<form action="/note" method="post">
+  <!-- {{with .FieldErrors}}
+  <ul class="errors">
+    {{range .}}
+    <li>{{.}}</li>
+    {{end}}
+  </ul>
+  {{end}} -->
+
+  <label for="title">Título</label>
+  {{with .FieldErrors.title}}
+  <label class="error">{{.}}</label>
+  {{end}}
+  <input type="text" name="title" id="title" value="{{.Title}}">
+
+  <label for="content">Conteúdo</label>
+  {{with .FieldErrors.content}}
+  <label class="error">{{.}}</label>
+  {{end}}
+  <textarea name="content" id="content" cols="30" rows="10">{{.Content}}</textarea>
+
+  <input id="color" type="hidden" name="color" value="{{.Color}}">
+  <label for="color">Cor</label>
+  <div class="color-picker">
+    {{$color := .Color}}
+    {{range .Colors}}
+    <div data-color="{{.}}" class="color {{.}} {{if eq . $color}}active{{end}}"></div>
+    {{end}}
+  </div>
+
+  <div class="buttons">
+    <button class="success" type="submit">Salvar</button>
+    <button class="neutral" type="button">Cancelar</button>
+  </div>
+</form>
+{{end}}
+
+{{define "script"}}
+<script>
+  $(".color").click(function () {
+    $(".color").removeClass("active")
+    $(this).addClass("active")
+    $("#color").val($(this).data("color"))
+  })
+
+  $("button.neutral").click(function () {
+    window.location.href = "/"
+  })
+</script>
+{{end}}
