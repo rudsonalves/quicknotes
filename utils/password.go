@@ -8,6 +8,7 @@ import (
 
 type PasswordUtils interface {
 	HashPassword(password string) (string, error)
+	ValidatePassword(hashPassword, password string) bool
 }
 
 type passwordUtils struct{}
@@ -22,4 +23,8 @@ func (passwordUtils) HashPassword(password string) (string, error) {
 		return "", fmt.Errorf("falha ao gerar o hash da senha")
 	}
 	return string(hash), nil
+}
+
+func (passwordUtils) ValidatePassword(hashPassword, password string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(hashPassword), []byte(password)) == nil
 }
