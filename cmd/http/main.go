@@ -26,6 +26,7 @@ func main() {
 	slog.Info("Database connection successful")
 
 	noteRepo := repositories.NewNoteRepository(dbPool)
+	userRepo := repositories.NewUserRepository(dbPool)
 
 	mux := http.NewServeMux()
 
@@ -34,7 +35,7 @@ func main() {
 	mux.Handle("GET /static/", http.StripPrefix("/static/", staticHandler))
 
 	noteHandler := handlers.NewNoteHandlers(noteRepo)
-	userHandler := handlers.NewUserHandlers()
+	userHandler := handlers.NewUserHandlers(userRepo)
 
 	mux.Handle("/", handlers.HandlerWithError(noteHandler.NoteList))
 	mux.Handle("GET /note/{id}", handlers.HandlerWithError(noteHandler.NoteView))

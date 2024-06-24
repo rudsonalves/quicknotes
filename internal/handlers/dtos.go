@@ -33,6 +33,18 @@ type NoteRequest struct {
 	validations.FormValidator
 }
 
+type UserRequest struct {
+	Email    string
+	Password string
+	validations.FormValidator
+}
+
+func newUserRequest(email, password string) (req UserRequest) {
+	req.Email = email
+	req.Password = password
+	return
+}
+
 func newNoteRequest(note *models.Note) (req NoteRequest) {
 	for index := 1; index <= 9; index++ {
 		req.Colors = append(req.Colors, fmt.Sprintf("color%d", index))
