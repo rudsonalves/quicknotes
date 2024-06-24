@@ -47,6 +47,11 @@ func main() {
 	mux.Handle("GET /user/signup", handlers.HandlerWithError(userHandler.SignupForm))
 	mux.Handle("POST /user/signup", handlers.HandlerWithError(userHandler.Signup))
 
+	mux.Handle("GET /user/signin", handlers.HandlerWithError(userHandler.SigninForm))
+	mux.Handle("POST /user/signin", handlers.HandlerWithError(userHandler.Signin))
+
+	mux.Handle("GET /confirmation/{token}", handlers.HandlerWithError(userHandler.Confirm))
+
 	slog.Info(
 		fmt.Sprintf("Servidor rodando em %s:%s", config.Hostname, config.ServerPort),
 	)

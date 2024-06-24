@@ -1,0 +1,44 @@
+{{define "title"}}Fazer Login{{end}}
+
+{{define "main"}}
+<form class="" user-form action="/user/signin" method="post">
+  <h1>Entrar</h1>
+  {{with .FieldErrors}}
+  <ul class="errors">
+    {{range .}}
+    <li>{{.}}</li>
+    {{end}}
+  </ul>
+  {{end}}
+
+  <label for="email">E-mail</label>
+  <!-- {{with .FieldErrors.email}}
+  <label class="error">{{.}}</label>
+  {{end}} -->
+  <input type="email" name="email" id="email" value="{{.Email}}">
+
+  <label for="password">Senha</label>
+  <!-- {{with .FieldErrors.password}}
+  <label class="error">{{.}}</label>
+  {{end}} -->
+  <input type="password" name="password" id="password" value="{{.Password}}">
+
+  <input type="checkbox"><span>Mostrar senha</span>
+
+  <button class="success" type="submit">Entrar</button>
+
+  <p>Não é cadastrado? <a href="/user/signup">Cadastrar</a></p>
+</form>
+{{end}}
+
+{{define "script"}}
+<script>
+  $(":checkbox").click(function () {
+    if ($(this).is(":checked")) {
+      $("#password").attr("type", "text")
+    } else {
+      $("#password").attr("type", "password")
+    }
+  })
+</script>
+{{end}}
