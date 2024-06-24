@@ -1,145 +1,169 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"os"
+	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
+	"golang.org/x/crypto/bcrypt"
 )
 
-var conn *pgxpool.Pool
-
-func loadEnv() {
-	err := godotenv.Load()
-	if err != nil {
-		panic(err)
-	}
+func delay(password string, function func(string) ([]byte, error)) ([]byte, error) {
+	begin := time.Now()
+	hash, err := function(password)
+	fmt.Println("Delay:", time.Since(begin))
+	return hash, err
 }
 
-func createTable() {
-	query := `
-	CREATE TABLE IF NOT EXISTS posts (
-		id SERIAL PRIMARY KEY,
-		title TEXT NOT NULL,
-		content TEXT,
-		author TEXT NOT NULL
-	);
-	`
-
-	_, err := conn.Exec(context.Background(), query)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("Table posts created")
-}
-
-func insertPostWithReturn() {
-	title := "Post 3"
-	content := "Conteúdo 3"
-	author := "Rudson Alves"
-	query := `
-	INSERT INTO posts (title, content, author)
-		VALUES ($1, $2, $3)
-		RETURNING id
-	`
-
-	row := conn.QueryRow(context.Background(), query, title, content, author)
-	var id int
-	err := row.Scan(&id)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Post id: %d\n", id)
-}
-
-func selectById(id int) {
-	query := `
-	SELECT title, content, author FROM posts WHERE id = $1
-	`
-
-	row := conn.QueryRow(context.Background(), query, id)
-	var title, content, author string
-
-	err := row.Scan(&title, &content, &author)
-	// if err == pgxpool. .ErrNoRows {
-	// 	fmt.Printf("No post find from id: %d\n", id)
-	// 	return
-	// } else
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("title: %s, content = %s, author = %s\n", title, content, author)
-}
-
-type Post struct {
-	Id      int
-	Title   string
-	Content string
-	Author  string
-}
-
-func (p Post) String() string {
-	return fmt.Sprintf("Post id: %d  title: '%s'  content: '%s'  author: '%s'",
-		p.Id,
-		p.Title,
-		p.Content,
-		p.Author,
-	)
-}
-
-func selectAllPosts() (posts []Post) {
-	query := `
-	SELECT id, title, content, author FROM posts
-	`
-
-	rows, err := conn.Query(context.Background(), query)
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-
-	if err := rows.Err(); err != nil {
-		panic(err)
-	}
-
-	for rows.Next() {
-		var post Post
-		err := rows.Scan(&post.Id, &post.Title, &post.Content, &post.Author)
-		if err != nil {
-			panic(err)
-		}
-		posts = append(posts, post)
-	}
-
-	return
+func BCRYPT(password string) ([]byte, error) {
+	return bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 }
 
 func main() {
-	loadEnv() // Loading .env variables
-	var err error
-
-	dbUrl := os.Getenv("DATABASE_URL")
-	fmt.Printf("Connection Url: %s\n", dbUrl)
-	conn, err = pgxpool.New(context.Background(), dbUrl)
+	hash, err := delay("123456", BCRYPT)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		panic(err)
 	}
-	defer conn.Close()
+	fmt.Println(string(hash))
 
-	createTable()
-	// insertPostWithReturn()
-	selectById(2)
-	posts := selectAllPosts()
-
-	for _, post := range posts {
-		fmt.Println(post)
+	err = bcrypt.CompareHashAndPassword(hash, []byte("123456"))
+	if err != nil {
+		fmt.Println("Senha incorreta")
+	} else {
+		fmt.Println("Senha correta")
 	}
 }
+
+// var conn *pgxpool.Pool
+
+// func loadEnv() {
+// 	err := godotenv.Load()
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// }
+
+// func createTable() {
+// 	query := `
+// 	CREATE TABLE IF NOT EXISTS posts (
+// 		id SERIAL PRIMARY KEY,
+// 		title TEXT NOT NULL,
+// 		content TEXT,
+// 		author TEXT NOT NULL
+// 	);
+// 	`
+
+// 	_, err := conn.Exec(context.Background(), query)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+
+// 	fmt.Println("Table posts created")
+// }
+
+// func insertPostWithReturn() {
+// 	title := "Post 3"
+// 	content := "Conteúdo 3"
+// 	author := "Rudson Alves"
+// 	query := `
+// 	INSERT INTO posts (title, content, author)
+// 		VALUES ($1, $2, $3)
+// 		RETURNING id
+// 	`
+
+// 	row := conn.QueryRow(context.Background(), query, title, content, author)
+// 	var id int
+// 	err := row.Scan(&id)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+
+// 	fmt.Printf("Post id: %d\n", id)
+// }
+
+// func selectById(id int) {
+// 	query := `
+// 	SELECT title, content, author FROM posts WHERE id = $1
+// 	`
+
+// 	row := conn.QueryRow(context.Background(), query, id)
+// 	var title, content, author string
+
+// 	err := row.Scan(&title, &content, &author)
+// 	// if err == pgxpool. .ErrNoRows {
+// 	// 	fmt.Printf("No post find from id: %d\n", id)
+// 	// 	return
+// 	// } else
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	fmt.Printf("title: %s, content = %s, author = %s\n", title, content, author)
+// }
+
+// type Post struct {
+// 	Id      int
+// 	Title   string
+// 	Content string
+// 	Author  string
+// }
+
+// func (p Post) String() string {
+// 	return fmt.Sprintf("Post id: %d  title: '%s'  content: '%s'  author: '%s'",
+// 		p.Id,
+// 		p.Title,
+// 		p.Content,
+// 		p.Author,
+// 	)
+// }
+
+// func selectAllPosts() (posts []Post) {
+// 	query := `
+// 	SELECT id, title, content, author FROM posts
+// 	`
+
+// 	rows, err := conn.Query(context.Background(), query)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	defer rows.Close()
+
+// 	if err := rows.Err(); err != nil {
+// 		panic(err)
+// 	}
+
+// 	for rows.Next() {
+// 		var post Post
+// 		err := rows.Scan(&post.Id, &post.Title, &post.Content, &post.Author)
+// 		if err != nil {
+// 			panic(err)
+// 		}
+// 		posts = append(posts, post)
+// 	}
+
+// 	return
+// }
+
+// func main() {
+// 	loadEnv() // Loading .env variables
+// 	var err error
+
+// 	dbUrl := os.Getenv("DATABASE_URL")
+// 	fmt.Printf("Connection Url: %s\n", dbUrl)
+// 	conn, err = pgxpool.New(context.Background(), dbUrl)
+// 	if err != nil {
+// 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+// 		panic(err)
+// 	}
+// 	defer conn.Close()
+
+// 	createTable()
+// 	// insertPostWithReturn()
+// 	selectById(2)
+// 	posts := selectAllPosts()
+
+// 	for _, post := range posts {
+// 		fmt.Println(post)
+// 	}
+// }
 
 // func main() {
 // 	// h := slog.NewJSONHandler(os.Stdout, nil)

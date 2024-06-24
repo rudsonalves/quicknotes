@@ -142,7 +142,7 @@ func (nr *noteRepository) GetById(ctx context.Context, id int) (*models.Note, er
 	var note models.Note
 	query := `
 	SELECT id, title, content, color, created_at, updated_at
-		FROM notes WHERE Id = $1`
+		FROM notes WHERE id = $1`
 
 	row := nr.db.QueryRow(ctx, query, id)
 	if err := row.Scan(
