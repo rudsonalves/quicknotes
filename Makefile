@@ -8,13 +8,13 @@ run:
 exp:
 	go run cmd/exp/exp.go
 
-db_up:
+docker_up:
 	docker compose up
 
 # db_down:
 # 	docker compose down
 
-db:
+connect_postgres:
 	docker exec -it quicknotes-db-1 bash -c "psql -h localhost -p 5432 -U postgres -d postgres"
 
 migrate_up:

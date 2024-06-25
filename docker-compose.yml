@@ -17,10 +17,16 @@ services:
     environment:
       POSTGRES_PASSWORD: rafael82
     ports:
-      - "5432:5432"
+      - 5432:5432
 
   adminer:
     image: adminer
     restart: always
     ports:
       - 8080:8080
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - 1025:1025
+      - 8025:8025
