@@ -1,1 +1,1 @@
-DROP IF EXISTS users_confirmation_tokens;
+DROP IF EXISTS users_conf_tokens;

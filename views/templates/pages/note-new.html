@@ -10,7 +10,7 @@
     {{end}}
   </ul>
   {{end}} -->
-
+  {{csrfField}}
   <label for="title">Título</label>
   {{with .FieldErrors.title}}
   <label class="error">{{.}}</label>
@@ -48,7 +48,7 @@
   })
 
   $("button.neutral").click(function () {
-    window.location.href = "/"
+    window.location.href = "/note"
   })
 </script>
 {{end}}

@@ -12,11 +12,11 @@ import (
 )
 
 type NoteRepository interface {
-	Create(ctx context.Context, title, content, color string) (*models.Note, error)
-	GetById(ctx context.Context, id int) (*models.Note, error)
-	List(ctx context.Context) ([]models.Note, error)
-	Update(ctx context.Context, id int, title, content, color string) (*models.Note, error)
-	Delete(ctx context.Context, id int) error
+	Create(ctx context.Context, userId int64, title, content, color string) (*models.Note, error)
+	GetById(ctx context.Context, id int64) (*models.Note, error)
+	List(ctx context.Context, userId int64) ([]models.Note, error)
+	Update(ctx context.Context, id int64, title, content, color string) (*models.Note, error)
+	Delete(ctx context.Context, id int64) error
 }
 
 type noteRepository struct {
@@ -29,7 +29,7 @@ func NewNoteRepository(dbpool *pgxpool.Pool) NoteRepository {
 	}
 }
 
-func (nr *noteRepository) Delete(ctx context.Context, id int) error {
+func (nr *noteRepository) Delete(ctx context.Context, id int64) error {
 	query := `DELETE FROM notes WHERE id = $1`
 
 	_, err := nr.db.Exec(ctx, query, id)
@@ -40,7 +40,7 @@ func (nr *noteRepository) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-func (nr *noteRepository) Update(ctx context.Context, id int, title, content, color string) (*models.Note, error) {
+func (nr *noteRepository) Update(ctx context.Context, id int64, title, content, color string) (*models.Note, error) {
 	var note models.Note
 	note.Id = pgtype.Numeric{Int: big.NewInt(int64(id)), Valid: true}
 
@@ -82,18 +82,18 @@ func (nr *noteRepository) Update(ctx context.Context, id int, title, content, co
 	return &note, nil
 }
 
-func (nr *noteRepository) Create(ctx context.Context, title, content, color string) (*models.Note, error) {
+func (nr *noteRepository) Create(ctx context.Context, userId int64, title, content, color string) (*models.Note, error) {
 	var note models.Note
 	note.Title = pgtype.Text{String: title, Valid: true}
 	note.Content = pgtype.Text{String: content, Valid: true}
 	note.Color = pgtype.Text{String: color, Valid: true}
 
 	query := `
-	INSERT INTO notes (title, content, color)
-		VALUES ($1, $2, $3)
+	INSERT INTO notes (user_id, title, content, color)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id, created_at`
 
-	row := nr.db.QueryRow(ctx, query, title, content, color)
+	row := nr.db.QueryRow(ctx, query, userId, title, content, color)
 	if err := row.Scan(&note.Id, &note.CreatedAt); err != nil {
 		return nil, newRepositoriesError(err)
 	}
@@ -101,12 +101,13 @@ func (nr *noteRepository) Create(ctx context.Context, title, content, color stri
 	return &note, nil
 }
 
-func (nr *noteRepository) List(ctx context.Context) ([]models.Note, error) {
+func (nr *noteRepository) List(ctx context.Context, userId int64) ([]models.Note, error) {
 	var notes []models.Note
 	query := `
-	SELECT id, title, content, color, created_at, updated_at FROM notes`
+	SELECT id, user_id, title, content, color, created_at, updated_at FROM notes
+	WHERE user_id = $1`
 
-	rows, err := nr.db.Query(ctx, query)
+	rows, err := nr.db.Query(ctx, query, userId)
 	if err != nil {
 		slog.Error(err.Error())
 		return nil, newRepositoriesError(err)
@@ -122,6 +123,7 @@ func (nr *noteRepository) List(ctx context.Context) ([]models.Note, error) {
 		note := models.Note{}
 		err := rows.Scan(
 			&note.Id,
+			&note.UserId,
 			&note.Title,
 			&note.Content,
 			&note.Color,
@@ -138,15 +140,16 @@ func (nr *noteRepository) List(ctx context.Context) ([]models.Note, error) {
 	return notes, nil
 }
 
-func (nr *noteRepository) GetById(ctx context.Context, id int) (*models.Note, error) {
+func (nr *noteRepository) GetById(ctx context.Context, id int64) (*models.Note, error) {
 	var note models.Note
 	query := `
-	SELECT id, title, content, color, created_at, updated_at
+	SELECT id, user_id, title, content, color, created_at, updated_at
 		FROM notes WHERE id = $1`
 
 	row := nr.db.QueryRow(ctx, query, id)
 	if err := row.Scan(
 		&note.Id,
+		&note.UserId,
 		&note.Title,
 		&note.Content,
 		&note.Color,

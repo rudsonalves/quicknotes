@@ -6,10 +6,12 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
+	"github.com/alexedwards/scs/pgxstore"
+	"github.com/alexedwards/scs/v2"
+	"github.com/gorilla/csrf"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/rudsonalves/quicknotes/internal/handlers"
-	"github.com/rudsonalves/quicknotes/internal/repositories"
 )
 
 func main() {
@@ -25,37 +27,23 @@ func main() {
 	defer dbPool.Close()
 	slog.Info("Database connection successful")
 
-	noteRepo := repositories.NewNoteRepository(dbPool)
-	userRepo := repositories.NewUserRepository(dbPool)
+	sessionManager := scs.New()
+	sessionManager.Lifetime = time.Hour
+	sessionManager.Store = pgxstore.New(dbPool)
+	// Run cleanup every 30 minutes.
+	pgxstore.NewWithCleanupInterval(dbPool, 30*time.Minute)
 
-	mux := http.NewServeMux()
+	mux := LoadRoutes(dbPool, sessionManager)
 
-	staticHandler := http.FileServer(http.Dir("views/static/"))
-
-	mux.Handle("GET /static/", http.StripPrefix("/static/", staticHandler))
-
-	noteHandler := handlers.NewNoteHandlers(noteRepo)
-	userHandler := handlers.NewUserHandlers(userRepo)
-
-	mux.Handle("/", handlers.HandlerWithError(noteHandler.NoteList))
-	mux.Handle("GET /note/{id}", handlers.HandlerWithError(noteHandler.NoteView))
-	mux.Handle("GET /note/new", handlers.HandlerWithError(noteHandler.NoteNew))
-	mux.Handle("POST /note", handlers.HandlerWithError(noteHandler.NoteSave))
-	mux.Handle("DELETE /note/{id}", handlers.HandlerWithError(noteHandler.NoteDelete))
-	mux.Handle("GET /note/edit/{id}", handlers.HandlerWithError(noteHandler.NoteEdit))
-
-	mux.Handle("GET /user/signup", handlers.HandlerWithError(userHandler.SignupForm))
-	mux.Handle("POST /user/signup", handlers.HandlerWithError(userHandler.Signup))
-
-	mux.Handle("GET /user/signin", handlers.HandlerWithError(userHandler.SigninForm))
-	mux.Handle("POST /user/signin", handlers.HandlerWithError(userHandler.Signin))
-
-	mux.Handle("GET /confirmation/{token}", handlers.HandlerWithError(userHandler.Confirm))
+	csrfMiddlerewar := csrf.Protect([]byte("32-byte-long-auth-key"))
 
 	slog.Info(
 		fmt.Sprintf("Servidor rodando em %s:%s", config.Hostname, config.ServerPort),
 	)
-	if err := http.ListenAndServe(fmt.Sprintf("%s:%s", config.Hostname, config.ServerPort), mux); err != nil {
+	if err := http.ListenAndServe(
+		fmt.Sprintf("%s:%s", config.Hostname, config.ServerPort),
+		sessionManager.LoadAndSave(csrfMiddlerewar(mux)),
+	); err != nil {
 		panic(err)
 	}
 }

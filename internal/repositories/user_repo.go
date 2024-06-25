@@ -19,11 +19,11 @@ var ErrInvalidTokenOrUserAlreadyConfirmed = newRepositoriesError(errors.New("inv
 
 type UserRepository interface {
 	Create(ctx context.Context, email, password, hashKey string) (*models.User, string, error)
-	GetById(ctx context.Context, id int) (*models.User, error)
+	GetById(ctx context.Context, id int64) (*models.User, error)
 	GetByEmail(ctx context.Context, email string) (*models.User, error)
 	List(ctx context.Context) ([]models.User, error)
-	Update(ctx context.Context, id int, email, password string) (*models.User, error)
-	Delete(ctx context.Context, id int) error
+	Update(ctx context.Context, id int64, email, password string) (*models.User, error)
+	Delete(ctx context.Context, id int64) error
 	ConfirmUserByToken(ctx context.Context, token string) error
 }
 
@@ -39,7 +39,7 @@ func NewUserRepository(dbpoll *pgxpool.Pool) UserRepository {
 
 func (u *userRepository) ConfirmUserByToken(ctx context.Context, token string) error {
 	query := `
-	SELECT u.id, t.id FROM users u INNER JOIN users_confirmation_tokens t
+	SELECT u.id, t.id FROM users u INNER JOIN users_conf_tokens t
 		ON u.id = t.user_id
 		WHERE u.active = false
 		AND t.confirmed = false
@@ -60,7 +60,7 @@ func (u *userRepository) ConfirmUserByToken(ctx context.Context, token string) e
 		return newRepositoriesError(err)
 	}
 
-	queryUpdateToken := `UPDATE users_confirmation_tokens SET confirmed = true, updated_at = now() WHERE id = $1`
+	queryUpdateToken := `UPDATE users_conf_tokens SET confirmed = true, updated_at = now() WHERE id = $1`
 	_, err = u.db.Exec(ctx, queryUpdateToken, totokenId)
 	if err != nil {
 		return newRepositoriesError(err)
@@ -95,7 +95,7 @@ func (u *userRepository) Create(ctx context.Context, email string, password stri
 	return &user, userToken.Token.String, nil
 }
 
-func (u *userRepository) Delete(ctx context.Context, id int) error {
+func (u *userRepository) Delete(ctx context.Context, id int64) error {
 	query := `DELETE FROM users WHERE id = $1`
 
 	_, err := u.db.Exec(ctx, query, id)
@@ -106,7 +106,7 @@ func (u *userRepository) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-func (u *userRepository) GetById(ctx context.Context, id int) (*models.User, error) {
+func (u *userRepository) GetById(ctx context.Context, id int64) (*models.User, error) {
 	var user models.User
 	query := `
 	SELECT id, email, password, active, created_at, updated_at
@@ -180,7 +180,7 @@ func (u *userRepository) List(ctx context.Context) ([]models.User, error) {
 	return users, nil
 }
 
-func (u *userRepository) Update(ctx context.Context, id int, email string, password string) (*models.User, error) {
+func (u *userRepository) Update(ctx context.Context, id int64, email string, password string) (*models.User, error) {
 	var user models.User
 	user.Id = pgtype.Numeric{Int: big.NewInt(int64(id)), Valid: true}
 
@@ -222,7 +222,7 @@ func (u *userRepository) createConfirmToken(ctx context.Context, user *models.Us
 	userTotken.UserId = user.Id
 	userTotken.Token = pgtype.Text{String: token, Valid: true}
 	query := `
-	INSERT INTO users_confirmation_tokens (user_id, token)
+	INSERT INTO users_conf_tokens (user_id, token)
 		VALUES($1, $2)
 		RETURNING id, created_at`
 

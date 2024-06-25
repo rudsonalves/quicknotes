@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS users_confirmation_tokens (
+CREATE TABLE IF NOT EXISTS users_conf_tokens (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGSERIAL NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token TEXT NOT NULL,

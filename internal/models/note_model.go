@@ -8,6 +8,7 @@ import (
 
 type Note struct {
 	Id        pgtype.Numeric
+	UserId    pgtype.Numeric
 	Title     pgtype.Text
 	Content   pgtype.Text
 	Color     pgtype.Text
@@ -17,6 +18,6 @@ type Note struct {
 
 func (n Note) String() string {
 	return fmt.Sprintf(
-		"Note{id: %d, title: %s, Content: %s, Color: %s, Created At: %v, Updated At: %v}",
-		n.Id.Int, n.Title.String, n.Content.String, n.Color.String, n.CreatedAt.Time, n.UpdatedAt.Time)
+		"Note{id: %d, UserId: %d,title: %s, Content: %s, Color: %s, Created At: %v, Updated At: %v}",
+		n.Id.Int, n.UserId.Int, n.Title.String, n.Content.String, n.Color.String, n.CreatedAt.Time, n.UpdatedAt.Time)
 }

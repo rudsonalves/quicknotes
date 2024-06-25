@@ -2,13 +2,14 @@ package handlers
 
 import (
 	"fmt"
+	"html/template"
 
 	"github.com/rudsonalves/quicknotes/internal/models"
 	"github.com/rudsonalves/quicknotes/internal/validations"
 )
 
 type NoteResponse struct {
-	Id      int
+	Id      int64
 	Title   string
 	Content string
 	Color   string
@@ -16,7 +17,7 @@ type NoteResponse struct {
 
 func newNoteResponseFromNote(note *models.Note) (resp NoteResponse) {
 	resp = NoteResponse{
-		Id:      int(note.Id.Int.Int64()),
+		Id:      note.Id.Int.Int64(),
 		Title:   note.Title.String,
 		Content: note.Content.String,
 		Color:   note.Color.String,
@@ -25,11 +26,12 @@ func newNoteResponseFromNote(note *models.Note) (resp NoteResponse) {
 }
 
 type NoteRequest struct {
-	Id      int
-	Title   string
-	Content string
-	Color   string
-	Colors  []string
+	Id        int64
+	Title     string
+	Content   string
+	Color     string
+	Colors    []string
+	CSRFField template.HTML
 	validations.FormValidator
 }
 
@@ -50,7 +52,7 @@ func newNoteRequest(note *models.Note) (req NoteRequest) {
 		req.Colors = append(req.Colors, fmt.Sprintf("color%d", index))
 	}
 	if note != nil {
-		req.Id = int(note.Id.Int.Int64())
+		req.Id = note.Id.Int.Int64()
 		req.Title = note.Title.String
 		req.Content = note.Content.String
 		req.Color = note.Color.String
