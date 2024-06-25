@@ -1,8 +1,11 @@
 CREATE TABLE IF NOT EXISTS notes (
   id BIGSERIAL PRIMARY KEY,
+  user_id BIGSERIAL NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   content TEXT,
   color TEXT NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS notes_user_id_idx ON notes (user_id);

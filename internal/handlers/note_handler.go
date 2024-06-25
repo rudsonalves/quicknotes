@@ -7,35 +7,44 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alexedwards/scs/v2"
+	"github.com/gorilla/csrf"
 	appError "github.com/rudsonalves/quicknotes/internal/app_error"
 	"github.com/rudsonalves/quicknotes/internal/models"
+	"github.com/rudsonalves/quicknotes/internal/render"
 	"github.com/rudsonalves/quicknotes/internal/repositories"
 )
 
 type noteHandler struct {
-	repo repositories.NoteRepository
+	repo    repositories.NoteRepository
+	session *scs.SessionManager
+	render  *render.RenderTemplate
 }
 
-func NewNoteHandlers(noteRepo repositories.NoteRepository) *noteHandler {
-	return &noteHandler{repo: noteRepo}
+func NewNoteHandlers(session *scs.SessionManager, noteRepo repositories.NoteRepository, render *render.RenderTemplate) *noteHandler {
+	return &noteHandler{
+		repo:    noteRepo,
+		session: session,
+		render:  render,
+	}
+}
+
+func (nh *noteHandler) userId(r *http.Request) int64 {
+	return nh.session.GetInt64(r.Context(), "userId")
 }
 
 func (nh *noteHandler) NoteList(w http.ResponseWriter, r *http.Request) error {
-	if r.URL.Path != "/" {
-		return errors.New("lista não encontrada")
-	}
-
-	notes, err := nh.repo.List(r.Context())
+	notes, err := nh.repo.List(r.Context(), nh.userId(r))
 	if err != nil {
 		return err
 	}
 
-	return render(w, http.StatusOK, "home.html", newNoteResponseFromNoteList(notes))
+	return nh.render.RenderPage(w, r, http.StatusOK, "note-home.html", newNoteResponseFromNoteList(notes))
 }
 
 func (nh *noteHandler) NoteView(w http.ResponseWriter, r *http.Request) error {
 	idParm := r.PathValue("id")
-	id, err := strconv.Atoi(idParm)
+	id, err := strconv.ParseInt(idParm, 10, 64)
 	if err != nil {
 		err := errors.New("id da nota não foi fornecida")
 		return appError.WithStatus(err, http.StatusBadRequest)
@@ -49,7 +58,7 @@ func (nh *noteHandler) NoteView(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return render(w, http.StatusOK, "note-view.html", newNoteResponseFromNote(note))
+	return nh.render.RenderPage(w, r, http.StatusOK, "note-view.html", newNoteResponseFromNote(note))
 }
 
 func (nh *noteHandler) NoteSave(w http.ResponseWriter, r *http.Request) error {
@@ -62,7 +71,7 @@ func (nh *noteHandler) NoteSave(w http.ResponseWriter, r *http.Request) error {
 	color := r.PostForm.Get("color")
 
 	var err error
-	id, _ := strconv.Atoi(idParm)
+	id, _ := strconv.ParseInt(idParm, 10, 64)
 
 	data := newNoteRequest(nil)
 	data.Color = color
@@ -78,9 +87,9 @@ func (nh *noteHandler) NoteSave(w http.ResponseWriter, r *http.Request) error {
 	if !data.Valid() {
 		if id > 0 {
 			data.Id = id
-			render(w, http.StatusUnprocessableEntity, "note-edit.html", data)
+			nh.render.RenderPage(w, r, http.StatusUnprocessableEntity, "note-edit.html", data)
 		} else {
-			render(w, http.StatusUnprocessableEntity, "note-new.html", data)
+			nh.render.RenderPage(w, r, http.StatusUnprocessableEntity, "note-new.html", data)
 		}
 		return nil
 	}
@@ -89,7 +98,7 @@ func (nh *noteHandler) NoteSave(w http.ResponseWriter, r *http.Request) error {
 	if id > 0 {
 		note, err = nh.repo.Update(r.Context(), id, title, content, color)
 	} else {
-		note, err = nh.repo.Create(r.Context(), title, content, color)
+		note, err = nh.repo.Create(r.Context(), nh.userId(r), title, content, color)
 	}
 	if err != nil {
 		return err
@@ -101,13 +110,15 @@ func (nh *noteHandler) NoteSave(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (nh *noteHandler) NoteNew(w http.ResponseWriter, r *http.Request) error {
-	return render(w, http.StatusOK, "note-new.html", newNoteRequest(nil))
+	data := newNoteRequest(nil)
+	data.CSRFField = csrf.TemplateField(r)
+	return nh.render.RenderPage(w, r, http.StatusOK, "note-new.html", data)
 }
 
 func (nh *noteHandler) NoteDelete(w http.ResponseWriter, r *http.Request) error {
 	idParm := r.PathValue("id")
 
-	id, err := strconv.Atoi(idParm)
+	id, err := strconv.ParseInt(idParm, 10, 64)
 	if err != nil {
 		err := errors.New("id da nota não foi fornecida")
 		return appError.WithStatus(err, http.StatusBadRequest)
@@ -122,7 +133,7 @@ func (nh *noteHandler) NoteDelete(w http.ResponseWriter, r *http.Request) error 
 
 func (nh *noteHandler) NoteEdit(w http.ResponseWriter, r *http.Request) error {
 	idParm := r.PathValue("id")
-	id, err := strconv.Atoi(idParm)
+	id, err := strconv.ParseInt(idParm, 10, 64)
 	if err != nil {
 		err := errors.New("id da nota não foi fornecida")
 		return appError.WithStatus(err, http.StatusBadRequest)
@@ -132,5 +143,5 @@ func (nh *noteHandler) NoteEdit(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return render(w, http.StatusOK, "note-edit.html", newNoteRequest(note))
+	return nh.render.RenderPage(w, r, http.StatusOK, "note-edit.html", newNoteRequest(note))
 }
