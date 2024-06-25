@@ -2,15 +2,17 @@ package main
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rudsonalves/quicknotes/internal/handlers"
+	"github.com/rudsonalves/quicknotes/internal/mailer"
 	"github.com/rudsonalves/quicknotes/internal/render"
 	"github.com/rudsonalves/quicknotes/internal/repositories"
 )
 
-func LoadRoutes(dbPool *pgxpool.Pool, session *scs.SessionManager) http.Handler {
+func LoadRoutes(dbPool *pgxpool.Pool, session *scs.SessionManager, config Config) http.Handler {
 
 	staticHandler := http.FileServer(http.Dir("views/static/"))
 	mux := http.NewServeMux()
@@ -20,9 +22,20 @@ func LoadRoutes(dbPool *pgxpool.Pool, session *scs.SessionManager) http.Handler 
 
 	reder := render.NewRenderTemplate(session)
 
+	// Mail service
+	mailPort, _ := strconv.Atoi(config.MailPort)
+	smtp := mailer.SMTPConfig{
+		Host:     config.MailHost,
+		Port:     mailPort,
+		UserName: config.MailUserName,
+		Password: config.MailUserPass,
+		From:     config.MailFrom,
+	}
+	mailservice := mailer.NewSmtpMailService(smtp)
+
 	homeHandler := handlers.NewHomeHandler(reder)
 	noteHandler := handlers.NewNoteHandlers(session, noteRepo, reder)
-	userHandler := handlers.NewUserHandlers(session, userRepo, reder)
+	userHandler := handlers.NewUserHandlers(session, userRepo, reder, mailservice)
 
 	authMiddleware := handlers.NewAuthMiddleware(session)
 

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/alexedwards/scs/v2"
+	"github.com/rudsonalves/quicknotes/internal/mailer"
 	"github.com/rudsonalves/quicknotes/internal/render"
 	"github.com/rudsonalves/quicknotes/internal/repositories"
 	"github.com/rudsonalves/quicknotes/utils"
@@ -17,14 +18,21 @@ type userHandler struct {
 	session       *scs.SessionManager
 	repo          repositories.UserRepository
 	render        *render.RenderTemplate
+	mail          mailer.MailService
 	passwordUtils utils.PasswordUtils
 }
 
-func NewUserHandlers(session *scs.SessionManager, userRepo repositories.UserRepository, render *render.RenderTemplate) *userHandler {
+func NewUserHandlers(
+	session *scs.SessionManager,
+	userRepo repositories.UserRepository,
+	render *render.RenderTemplate,
+	mail mailer.MailService,
+) *userHandler {
 	return &userHandler{
 		session:       session,
 		repo:          userRepo,
 		render:        render,
+		mail:          mail,
 		passwordUtils: utils.NewPasswordUtils(),
 	}
 }
@@ -124,7 +132,7 @@ func (uh *userHandler) Signup(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	hashToken := utils.GenerateTokenKey(email)
-	_, token, err := uh.repo.Create(r.Context(), email, hashPassword, hashToken)
+	_, confirmationToken, err := uh.repo.Create(r.Context(), email, hashPassword, hashToken)
 	if err != nil {
 		if err == repositories.ErrDuplicateEmail {
 			data.AddFieldError("email", "Email já está em uso")
@@ -133,7 +141,20 @@ func (uh *userHandler) Signup(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return uh.render.RenderPage(w, r, http.StatusOK, "user-signup-success.html", token)
+	// Enviar email de confirmação de cadastro
+	body, err := uh.render.RenderMailBody("confirmation.html", confirmationToken)
+	if err != nil {
+		return err
+	}
+	msg := mailer.MailMessage{
+		To:      []string{email},
+		Subject: "Confirmação de Cadastro",
+		IsHtml:  true,
+		Body:    body,
+	}
+	uh.mail.Send(msg)
+
+	return uh.render.RenderPage(w, r, http.StatusOK, "user-signup-success.html", confirmationToken)
 }
 
 func (uh *userHandler) Confirm(w http.ResponseWriter, r *http.Request) error {
