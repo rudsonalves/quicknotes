@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"log/slog"
 	"net/http"
 
 	"github.com/alexedwards/scs/v2"
@@ -53,4 +54,17 @@ func (rt *RenderTemplate) RenderPage(w http.ResponseWriter, r *http.Request, sta
 	w.WriteHeader(status)
 	buff.WriteTo(w)
 	return nil
+}
+
+func (rt *RenderTemplate) RenderMailBody(mailTempl string, data any) ([]byte, error) {
+	t, err := template.ParseFiles("views/templates/mails/" + mailTempl)
+	if err != nil {
+		slog.Error(err.Error())
+		return nil, err
+	}
+
+	buff := &bytes.Buffer{}
+	t.Execute(buff, data)
+
+	return buff.Bytes(), nil
 }

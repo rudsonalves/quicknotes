@@ -12,7 +12,6 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/gorilla/csrf"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/rudsonalves/quicknotes/internal/mailer"
 )
 
 func main() {
@@ -28,32 +27,13 @@ func main() {
 	defer dbPool.Close()
 	slog.Info("Database connection successful")
 
-	// testar envio de email
-	msg := mailer.MailMessage{
-		To:      []string{"alvesdev67@gmail.com", "alvestest67@gmail.com"},
-		Subject: "Bem vindo",
-		Body:    []byte("<h1>Seja bem vindo ao Quicknotes!</h1>"),
-		IsHtml:  true,
-	}
-
-	smtp := mailer.SMTPConfig{
-		Host:     "localhost",
-		Port:     1025,
-		UserName: "",
-		Password: "",
-		From:     "quicknote@quick.com",
-	}
-
-	mailservice := mailer.NewSmtpMailService(smtp)
-	mailservice.Send(msg)
-
 	sessionManager := scs.New()
 	sessionManager.Lifetime = time.Hour
 	sessionManager.Store = pgxstore.New(dbPool)
 	// Run cleanup every 30 minutes.
 	pgxstore.NewWithCleanupInterval(dbPool, 30*time.Minute)
 
-	mux := LoadRoutes(dbPool, sessionManager)
+	mux := LoadRoutes(dbPool, sessionManager, config)
 
 	csrfMiddlerewar := csrf.Protect([]byte("32-byte-long-auth-key"))
 
