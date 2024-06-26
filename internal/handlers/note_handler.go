@@ -21,16 +21,26 @@ type noteHandler struct {
 	render  *render.RenderTemplate
 }
 
-func NewNoteHandlers(session *scs.SessionManager, noteRepo repositories.NoteRepository, render *render.RenderTemplate) *noteHandler {
+func NewNoteHandlers(
+	session *scs.SessionManager,
+	noteRepo repositories.NoteRepository,
+	render *render.RenderTemplate) *noteHandler {
 	return &noteHandler{
 		repo:    noteRepo,
 		session: session,
-		render:  render,
-	}
+		render:  render}
 }
 
 func (nh *noteHandler) userId(r *http.Request) int64 {
 	return nh.session.GetInt64(r.Context(), "userId")
+}
+
+func strconvInt64(sValue string) (int64, error) {
+	value, err := strconv.ParseInt(sValue, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return value, nil
 }
 
 func (nh *noteHandler) NoteList(w http.ResponseWriter, r *http.Request) error {
@@ -44,7 +54,7 @@ func (nh *noteHandler) NoteList(w http.ResponseWriter, r *http.Request) error {
 
 func (nh *noteHandler) NoteView(w http.ResponseWriter, r *http.Request) error {
 	idParm := r.PathValue("id")
-	id, err := strconv.ParseInt(idParm, 10, 64)
+	id, err := strconvInt64(idParm)
 	if err != nil {
 		err := errors.New("id da nota não foi fornecida")
 		return appError.WithStatus(err, http.StatusBadRequest)
@@ -66,17 +76,17 @@ func (nh *noteHandler) NoteSave(w http.ResponseWriter, r *http.Request) error {
 		return appError.WithStatus(errors.New("error no formulário"), http.StatusBadRequest)
 	}
 	idParm := r.PostForm.Get("id")
+	id, _ := strconvInt64(idParm)
 	title := r.PostForm.Get("title")
 	content := r.PostForm.Get("content")
 	color := r.PostForm.Get("color")
 
-	var err error
-	id, _ := strconv.ParseInt(idParm, 10, 64)
-
 	data := newNoteRequest(nil)
+	data.Id = id
 	data.Color = color
 	data.Content = content
 	data.Title = title
+
 	if strings.TrimSpace(title) == "" {
 		data.AddFieldError("title", "Título é obrigatório")
 	}
@@ -86,7 +96,6 @@ func (nh *noteHandler) NoteSave(w http.ResponseWriter, r *http.Request) error {
 
 	if !data.Valid() {
 		if id > 0 {
-			data.Id = id
 			nh.render.RenderPage(w, r, http.StatusUnprocessableEntity, "note-edit.html", data)
 		} else {
 			nh.render.RenderPage(w, r, http.StatusUnprocessableEntity, "note-new.html", data)
@@ -94,6 +103,7 @@ func (nh *noteHandler) NoteSave(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	}
 
+	var err error
 	var note *models.Note
 	if id > 0 {
 		note, err = nh.repo.Update(r.Context(), id, title, content, color)
@@ -118,7 +128,7 @@ func (nh *noteHandler) NoteNew(w http.ResponseWriter, r *http.Request) error {
 func (nh *noteHandler) NoteDelete(w http.ResponseWriter, r *http.Request) error {
 	idParm := r.PathValue("id")
 
-	id, err := strconv.ParseInt(idParm, 10, 64)
+	id, err := strconvInt64(idParm)
 	if err != nil {
 		err := errors.New("id da nota não foi fornecida")
 		return appError.WithStatus(err, http.StatusBadRequest)
@@ -133,7 +143,7 @@ func (nh *noteHandler) NoteDelete(w http.ResponseWriter, r *http.Request) error 
 
 func (nh *noteHandler) NoteEdit(w http.ResponseWriter, r *http.Request) error {
 	idParm := r.PathValue("id")
-	id, err := strconv.ParseInt(idParm, 10, 64)
+	id, err := strconvInt64(idParm)
 	if err != nil {
 		err := errors.New("id da nota não foi fornecida")
 		return appError.WithStatus(err, http.StatusBadRequest)

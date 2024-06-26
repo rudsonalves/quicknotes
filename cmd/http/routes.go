@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,43 +11,34 @@ import (
 	"github.com/rudsonalves/quicknotes/internal/repositories"
 )
 
-func LoadRoutes(dbPool *pgxpool.Pool, session *scs.SessionManager, config Config) http.Handler {
+func LoadRoutes(
+	dbPool *pgxpool.Pool,
+	sessionManager *scs.SessionManager,
+	mailservice mailer.MailService) http.Handler {
+	mux := http.NewServeMux()
 
 	staticHandler := http.FileServer(http.Dir("views/static/"))
-	mux := http.NewServeMux()
+
+	mux.Handle("GET /static/", http.StripPrefix("/static/", staticHandler))
 
 	noteRepo := repositories.NewNoteRepository(dbPool)
 	userRepo := repositories.NewUserRepository(dbPool)
 
-	reder := render.NewRenderTemplate(session)
+	render := render.NewRenderTemplate(sessionManager)
 
-	// Mail service
-	mailPort, _ := strconv.Atoi(config.MailPort)
-	smtp := mailer.SMTPConfig{
-		Host:     config.MailHost,
-		Port:     mailPort,
-		UserName: config.MailUserName,
-		Password: config.MailUserPass,
-		From:     config.MailFrom,
-	}
-	mailservice := mailer.NewSmtpMailService(smtp)
+	noteHandler := handlers.NewNoteHandlers(sessionManager, noteRepo, render)
+	userHandler := handlers.NewUserHandlers(sessionManager, userRepo, render, mailservice)
 
-	homeHandler := handlers.NewHomeHandler(reder)
-	noteHandler := handlers.NewNoteHandlers(session, noteRepo, reder)
-	userHandler := handlers.NewUserHandlers(session, userRepo, reder, mailservice)
+	authMiddleware := handlers.NewAuthMiddleware(sessionManager)
 
-	authMiddleware := handlers.NewAuthMiddleware(session)
-
-	mux.Handle("GET /static/", http.StripPrefix("/static/", staticHandler))
-
-	mux.HandleFunc("GET /", homeHandler.HomeView)
+	mux.HandleFunc("GET /", handlers.NewHomeHandler(render).HomeHandler)
 
 	mux.Handle("GET /note", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteList)))
 	mux.Handle("GET /note/{id}", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteView)))
 	mux.Handle("GET /note/new", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteNew)))
 	mux.Handle("POST /note", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteSave)))
 	mux.Handle("DELETE /note/{id}", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteDelete)))
-	mux.Handle("GET /note/edit/{id}", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteEdit)))
+	mux.Handle("GET /note/{id}/edit", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteEdit)))
 
 	mux.Handle("GET /user/signup", handlers.HandlerWithError(userHandler.SignupForm))
 	mux.Handle("POST /user/signup", handlers.HandlerWithError(userHandler.Signup))
@@ -57,6 +47,8 @@ func LoadRoutes(dbPool *pgxpool.Pool, session *scs.SessionManager, config Config
 	mux.Handle("POST /user/signin", handlers.HandlerWithError(userHandler.Signin))
 
 	mux.Handle("GET /user/signout", handlers.HandlerWithError(userHandler.Signout))
+
+	mux.Handle("GET /user/forgetpassword", handlers.HandlerWithError(userHandler.ForgetPassowrd))
 
 	mux.Handle("GET /me", authMiddleware.RequireAuth(handlers.HandlerWithError(userHandler.Me)))
 

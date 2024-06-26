@@ -16,15 +16,17 @@ import (
 
 var ErrDuplicateEmail = newRepositoriesError(errors.New("duplicate email"))
 var ErrInvalidTokenOrUserAlreadyConfirmed = newRepositoriesError(errors.New("invalid token or user already confirmed"))
+var ErrEmailNotFound = newRepositoriesError(errors.New("email not found"))
 
 type UserRepository interface {
-	Create(ctx context.Context, email, password, hashKey string) (*models.User, string, error)
-	GetById(ctx context.Context, id int64) (*models.User, error)
+	Create(ctx context.Context, email, password, hashToken string) (*models.User, string, error)
 	GetByEmail(ctx context.Context, email string) (*models.User, error)
-	List(ctx context.Context) ([]models.User, error)
-	Update(ctx context.Context, id int64, email, password string) (*models.User, error)
-	Delete(ctx context.Context, id int64) error
 	ConfirmUserByToken(ctx context.Context, token string) error
+	CreateResetPasswordToken(ctx context.Context, email, hashToken string) (string, error)
+	// GetById(ctx context.Context, id int64) (*models.User, error)
+	// List(ctx context.Context) ([]models.User, error)
+	// Update(ctx context.Context, id int64, email, password string) (*models.User, error)
+	// Delete(ctx context.Context, id int64) error
 }
 
 type userRepository struct {
@@ -35,6 +37,36 @@ func NewUserRepository(dbpoll *pgxpool.Pool) UserRepository {
 	return &userRepository{
 		db: dbpoll,
 	}
+}
+
+func (u *userRepository) CreateResetPasswordToken(ctx context.Context, email, hashToken string) (string, error) {
+	user, err := u.GetByEmail(ctx, email)
+	if err != nil || !user.Active.Bool {
+		return "", ErrEmailNotFound
+	}
+
+	userToken, err := u.createConfirmToken(ctx, user, hashToken)
+	if err != nil || !user.Active.Bool {
+		return "", err
+	}
+	return userToken.Token.String, nil
+}
+
+func (u *userRepository) createConfirmToken(ctx context.Context, user *models.User, token string) (*models.ConfirmToken, error) {
+	var userTotken models.ConfirmToken
+	userTotken.UserId = user.Id
+	userTotken.Token = pgtype.Text{String: token, Valid: true}
+	query := `
+	INSERT INTO users_conf_tokens (user_id, token)
+		VALUES($1, $2)
+		RETURNING id, created_at`
+
+	row := u.db.QueryRow(ctx, query, userTotken.UserId, userTotken.Token)
+	if err := row.Scan(&userTotken.Id, &userTotken.CreatedAt); err != nil {
+		return nil, newRepositoriesError(err)
+	}
+
+	return &userTotken, nil
 }
 
 func (u *userRepository) ConfirmUserByToken(ctx context.Context, token string) error {
@@ -69,7 +101,7 @@ func (u *userRepository) ConfirmUserByToken(ctx context.Context, token string) e
 	return nil
 }
 
-func (u *userRepository) Create(ctx context.Context, email string, password string, hashKey string) (*models.User, string, error) {
+func (u *userRepository) Create(ctx context.Context, email string, password string, hashToken string) (*models.User, string, error) {
 	var user models.User
 	user.Email = pgtype.Text{String: email, Valid: true}
 	user.Password = pgtype.Text{String: password, Valid: true}
@@ -87,23 +119,12 @@ func (u *userRepository) Create(ctx context.Context, email string, password stri
 		return nil, "", newRepositoriesError(err)
 	}
 
-	userToken, err := u.createConfirmToken(ctx, &user, hashKey)
+	userToken, err := u.createConfirmToken(ctx, &user, hashToken)
 	if err != nil {
 		return nil, "", newRepositoriesError(err)
 	}
 
 	return &user, userToken.Token.String, nil
-}
-
-func (u *userRepository) Delete(ctx context.Context, id int64) error {
-	query := `DELETE FROM users WHERE id = $1`
-
-	_, err := u.db.Exec(ctx, query, id)
-	if err != nil {
-		return newRepositoriesError(err)
-	}
-
-	return nil
 }
 
 func (u *userRepository) GetById(ctx context.Context, id int64) (*models.User, error) {
@@ -141,6 +162,17 @@ func (u *userRepository) GetByEmail(ctx context.Context, email string) (*models.
 	}
 
 	return &user, nil
+}
+
+func (u *userRepository) Delete(ctx context.Context, id int64) error {
+	query := `DELETE FROM users WHERE id = $1`
+
+	_, err := u.db.Exec(ctx, query, id)
+	if err != nil {
+		return newRepositoriesError(err)
+	}
+
+	return nil
 }
 
 func (u *userRepository) List(ctx context.Context) ([]models.User, error) {
@@ -215,21 +247,4 @@ func (u *userRepository) Update(ctx context.Context, id int64, email string, pas
 		return nil, newRepositoriesError(err)
 	}
 	return &user, nil
-}
-
-func (u *userRepository) createConfirmToken(ctx context.Context, user *models.User, token string) (*models.ConfirmToken, error) {
-	var userTotken models.ConfirmToken
-	userTotken.UserId = user.Id
-	userTotken.Token = pgtype.Text{String: token, Valid: true}
-	query := `
-	INSERT INTO users_conf_tokens (user_id, token)
-		VALUES($1, $2)
-		RETURNING id, created_at`
-
-	row := u.db.QueryRow(ctx, query, userTotken.UserId, userTotken.Token)
-	if err := row.Scan(&userTotken.Id, &userTotken.CreatedAt); err != nil {
-		return nil, newRepositoriesError(err)
-	}
-
-	return &userTotken, nil
 }

@@ -11,11 +11,9 @@ type homeHandler struct {
 }
 
 func NewHomeHandler(render *render.RenderTemplate) *homeHandler {
-	return &homeHandler{
-		render: render,
-	}
+	return &homeHandler{render: render}
 }
 
-func (h *homeHandler) HomeView(w http.ResponseWriter, r *http.Request) {
-	h.render.RenderPage(w, r, http.StatusOK, "home.html", nil)
+func (hh *homeHandler) HomeHandler(w http.ResponseWriter, r *http.Request) {
+	hh.render.RenderPage(w, r, http.StatusOK, "home.html", nil)
 }

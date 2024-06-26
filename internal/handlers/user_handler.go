@@ -131,7 +131,7 @@ func (uh *userHandler) Signup(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	hashToken := utils.GenerateTokenKey(email)
+	hashToken := utils.GenerateTokenKey()
 	_, confirmationToken, err := uh.repo.Create(r.Context(), email, hashPassword, hashToken)
 	if err != nil {
 		if err == repositories.ErrDuplicateEmail {
@@ -178,4 +178,34 @@ func (uh *userHandler) Signout(w http.ResponseWriter, r *http.Request) error {
 	uh.session.Remove(r.Context(), "userId")
 	http.Redirect(w, r, "/user/signin", http.StatusSeeOther)
 	return nil
+}
+
+func (uh *userHandler) ForgetPassowrd(w http.ResponseWriter, r *http.Request) error {
+	email := r.PostFormValue("email")
+
+	hashToken := utils.GenerateTokenKey()
+
+	token, err := uh.repo.CreateResetPasswordToken(r.Context(), email, hashToken)
+	if err != nil {
+		data := UserRequest{}
+		data.Email = email
+		data.AddFieldError("email", "Email não possui cadastro válido ou confirmado")
+		return uh.render.RenderPage(w, r, http.StatusOK, "user-forget-password.html", data)
+	}
+
+	body, err := uh.render.RenderMailBody("forgrtpassword.html", token)
+	if err != nil {
+		return err
+	}
+
+	if err := uh.mail.Send(mailer.MailMessage{
+		To:      []string{email},
+		Subject: "Reset senha",
+		IsHtml:  true,
+		Body:    body,
+	}); err != nil {
+		return err
+	}
+
+	return uh.render.RenderPage(w, r, http.StatusOK, "user-forget-password.html", nil)
 }
