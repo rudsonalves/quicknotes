@@ -1,0 +1,19 @@
+{{define "title"}}Reenviar email de confirmação{{end}}
+
+{{define "main"}}
+<form class="user-form" action="/confirmation" method="post">
+  <h1>Reenviar email de confirmação</h1>
+  {{with .FieldErrors}}
+  <ul class="errors">
+    {{range .}}
+    <li>{{.}}</li>
+    {{end}}
+  </ul>
+  {{end}}
+  {{csrfField}}
+  <label for="email">Email</label>
+  <input name="email" type="text" id="email" value="{{.Email}}">
+
+  <button class="success" type="submit">Enviar</button>
+</form>
+{{end}}

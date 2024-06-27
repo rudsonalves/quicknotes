@@ -2,7 +2,6 @@ package render
 
 import (
 	"bytes"
-	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -15,17 +14,14 @@ type RenderTemplate struct {
 	session *scs.SessionManager
 }
 
-func NewRenderTemplate(session *scs.SessionManager) *RenderTemplate {
-	return &RenderTemplate{
-		session: session,
-	}
+func NewRender(session *scs.SessionManager) *RenderTemplate {
+	return &RenderTemplate{session: session}
 }
 
 func (rt *RenderTemplate) RenderPage(w http.ResponseWriter, r *http.Request, status int, page string, data any) error {
 	files := []string{
 		"views/templates/base.html",
-		fmt.Sprintf("views/templates/pages/%s", page),
-	}
+		"views/templates/pages/" + page}
 
 	t := template.New("").Funcs(template.FuncMap{
 		"csrfField": func() template.HTML {
@@ -47,8 +43,7 @@ func (rt *RenderTemplate) RenderPage(w http.ResponseWriter, r *http.Request, sta
 	}
 
 	buff := &bytes.Buffer{}
-	err = t.ExecuteTemplate(buff, "base", data)
-	if err != nil {
+	if err = t.ExecuteTemplate(buff, "base", data); err != nil {
 		return err
 	}
 	w.WriteHeader(status)
@@ -64,7 +59,9 @@ func (rt *RenderTemplate) RenderMailBody(mailTempl string, data any) ([]byte, er
 	}
 
 	buff := &bytes.Buffer{}
-	t.Execute(buff, data)
+	if err = t.Execute(buff, data); err != nil {
+		return nil, err
+	}
 
 	return buff.Bytes(), nil
 }

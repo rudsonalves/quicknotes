@@ -39,7 +39,7 @@ func main2() {
 		From:     "quicknote@quick.com",
 	}
 
-	mailservice := mailer.NewSmtpMailService(smtp)
+	mailservice := mailer.NewSMTPMailService(smtp)
 	mailservice.Send(msg)
 }
 

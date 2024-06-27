@@ -2,7 +2,7 @@ package models
 
 import "github.com/jackc/pgx/v5/pgtype"
 
-type ConfirmToken struct {
+type UserConfirmationToken struct {
 	Id        pgtype.Numeric
 	UserId    pgtype.Numeric
 	Token     pgtype.Text

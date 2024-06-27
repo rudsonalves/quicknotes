@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,43 +11,34 @@ import (
 	"github.com/rudsonalves/quicknotes/internal/repositories"
 )
 
-func LoadRoutes(dbPool *pgxpool.Pool, session *scs.SessionManager, config Config) http.Handler {
+func LoadRoutes(
+	dbPool *pgxpool.Pool,
+	sessionManager *scs.SessionManager,
+	mailservice mailer.MailService) http.Handler {
+	mux := http.NewServeMux()
 
 	staticHandler := http.FileServer(http.Dir("views/static/"))
-	mux := http.NewServeMux()
+
+	mux.Handle("GET /static/", http.StripPrefix("/static/", staticHandler))
 
 	noteRepo := repositories.NewNoteRepository(dbPool)
 	userRepo := repositories.NewUserRepository(dbPool)
 
-	reder := render.NewRenderTemplate(session)
+	render := render.NewRender(sessionManager)
 
-	// Mail service
-	mailPort, _ := strconv.Atoi(config.MailPort)
-	smtp := mailer.SMTPConfig{
-		Host:     config.MailHost,
-		Port:     mailPort,
-		UserName: config.MailUserName,
-		Password: config.MailUserPass,
-		From:     config.MailFrom,
-	}
-	mailservice := mailer.NewSmtpMailService(smtp)
+	noteHandler := handlers.NewNoteHandler(sessionManager, noteRepo, render)
+	userHandler := handlers.NewUserHandler(sessionManager, userRepo, render, mailservice)
 
-	homeHandler := handlers.NewHomeHandler(reder)
-	noteHandler := handlers.NewNoteHandlers(session, noteRepo, reder)
-	userHandler := handlers.NewUserHandlers(session, userRepo, reder, mailservice)
+	authMidd := handlers.NewAuthMiddleware(sessionManager)
 
-	authMiddleware := handlers.NewAuthMiddleware(session)
+	mux.HandleFunc("GET /", handlers.NewHomeHandler(render).HomeHandler)
 
-	mux.Handle("GET /static/", http.StripPrefix("/static/", staticHandler))
-
-	mux.HandleFunc("GET /", homeHandler.HomeView)
-
-	mux.Handle("GET /note", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteList)))
-	mux.Handle("GET /note/{id}", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteView)))
-	mux.Handle("GET /note/new", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteNew)))
-	mux.Handle("POST /note", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteSave)))
-	mux.Handle("DELETE /note/{id}", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteDelete)))
-	mux.Handle("GET /note/edit/{id}", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteEdit)))
+	mux.Handle("GET /note", authMidd.RequireAuth(handlers.HandlerWithError(noteHandler.NoteList)))
+	mux.Handle("GET /note/{id}", authMidd.RequireAuth(handlers.HandlerWithError(noteHandler.NoteView)))
+	mux.Handle("GET /note/new", authMidd.RequireAuth(handlers.HandlerWithError(noteHandler.NoteNew)))
+	mux.Handle("POST /note", authMidd.RequireAuth(handlers.HandlerWithError(noteHandler.NoteSave)))
+	mux.Handle("DELETE /note/{id}", authMidd.RequireAuth(handlers.HandlerWithError(noteHandler.NoteDelete)))
+	mux.Handle("GET /note/{id}/edit", authMidd.RequireAuth(handlers.HandlerWithError(noteHandler.NoteEdit)))
 
 	mux.Handle("GET /user/signup", handlers.HandlerWithError(userHandler.SignupForm))
 	mux.Handle("POST /user/signup", handlers.HandlerWithError(userHandler.Signup))
@@ -58,9 +48,17 @@ func LoadRoutes(dbPool *pgxpool.Pool, session *scs.SessionManager, config Config
 
 	mux.Handle("GET /user/signout", handlers.HandlerWithError(userHandler.Signout))
 
-	mux.Handle("GET /me", authMiddleware.RequireAuth(handlers.HandlerWithError(userHandler.Me)))
+	mux.Handle("GET /user/forgetpassword", handlers.HandlerWithError(userHandler.ForgetPasswordForm))
+	mux.Handle("POST /user/forgetpassword", handlers.HandlerWithError(userHandler.ForgetPassword))
+	mux.Handle("POST /user/password", handlers.HandlerWithError(userHandler.ResetPassword))
+	mux.Handle("GET /user/password/{token}", handlers.HandlerWithError(userHandler.ResetPasswordForm))
+
+	mux.Handle("GET /me", authMidd.RequireAuth(handlers.HandlerWithError(userHandler.Me)))
 
 	mux.Handle("GET /confirmation/{token}", handlers.HandlerWithError(userHandler.Confirm))
+
+	mux.Handle("GET /confirmation", handlers.HandlerWithError(userHandler.NewConfirmationForm))
+	mux.Handle("POST /confirmation", handlers.HandlerWithError(userHandler.NewConfirmation))
 
 	return mux
 }
