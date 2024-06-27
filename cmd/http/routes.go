@@ -57,8 +57,8 @@ func LoadRoutes(
 
 	mux.Handle("GET /confirmation/{token}", handlers.HandlerWithError(userHandler.Confirm))
 
-	mux.Handle("GET /confirmation", handlers.HandlerWithError(userHandler.NewConfirmationForm))
-	mux.Handle("POST /confirmation", handlers.HandlerWithError(userHandler.NewConfirmation))
+	// mux.Handle("GET /confirmation", handlers.HandlerWithError(userHandler.NewConfirmationForm))
+	// mux.Handle("POST /confirmation", handlers.HandlerWithError(userHandler.NewConfirmation))
 
 	return mux
 }

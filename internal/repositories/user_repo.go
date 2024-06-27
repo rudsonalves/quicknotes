@@ -3,7 +3,6 @@ package repositories
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -24,7 +23,7 @@ type UserRepository interface {
 	CreateResetPasswordToken(ctx context.Context, email, hashToken string) (string, error)
 	GetUserConfirmationByToken(ctx context.Context, token string) (*models.UserConfirmationToken, error)
 	UpdatePasswordByToken(ctx context.Context, newPassword, token string) (string, error)
-	NewUserConfirmationToken(ctx context.Context, user *models.User, token string) (*models.UserConfirmationToken, error)
+	// NewUserConfirmationToken(ctx context.Context, user *models.User, token string) (*models.UserConfirmationToken, error)
 }
 
 type userRepository struct {
@@ -35,32 +34,42 @@ func NewUserRepository(dbpoll *pgxpool.Pool) UserRepository {
 	return &userRepository{db: dbpoll}
 }
 
-// UpdatePasswordByToken implements UserRepository.
-func (u *userRepository) UpdatePasswordByToken(ctx context.Context, newPassword string, token string) (string, error) {
+func (ur *userRepository) getUserIdEmailTokenIdFromToken(ctx context.Context, token string) (userId pgtype.Numeric, email pgtype.Text, tokenId pgtype.Numeric, err error) {
 	query := `
 	SELECT u.id u_id, u.email, t.id t_id FROM users u INNER JOIN users_conf_tokens t
 		ON u.id = t.user_id
 		WHERE t.confirmed = false
 		AND t.token = $1`
 
-	row := u.db.QueryRow(ctx, query, token)
-	var userId, tokenId pgtype.Numeric
-	var email pgtype.Text
-	if err := row.Scan(&userId, &email, &token); err != nil {
+	row := ur.db.QueryRow(ctx, query, token)
+	err = row.Scan(&userId, &email, &token)
+	return
+}
+
+func (ur *userRepository) UpdatePasswordByToken(ctx context.Context, newPassword string, token string) (string, error) {
+	userId, email, tokenId, err := ur.getUserIdEmailTokenIdFromToken(ctx, token)
+	if err != nil {
 		if err == pgx.ErrNoRows {
 			return "", ErrInvalidTokenOrUserAlreadyConfirmed
 		}
 		return "", newRepositoryError(err)
 	}
 
+	// transaction scope
+	tx, err := ur.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		fail(err)
+	}
+	defer tx.Rollback(ctx)
+
 	// update confirmation token
-	query = `
+	query := `
 	UPDATE users_conf_tokens
 		SET confirmed = true, updated_at = now()
 		WHERE id = $1`
-	_, err := u.db.Exec(ctx, query, tokenId)
+	_, err = tx.Exec(ctx, query, tokenId)
 	if err != nil {
-		return "", newRepositoryError(err)
+		return "", fail(err)
 	}
 
 	// update user password
@@ -68,28 +77,90 @@ func (u *userRepository) UpdatePasswordByToken(ctx context.Context, newPassword 
 	UPDATE users
 		SET password = $1, updated_at = now()
 		WHERE id = $2`
-	_, err = u.db.Exec(ctx, query, newPassword, userId)
+	_, err = tx.Exec(ctx, query, newPassword, userId)
 	if err != nil {
-		return "", newRepositoryError(err)
+		return "", fail(err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return "", fail(err)
 	}
 
 	return email.String, nil
 }
 
-func (u *userRepository) CreateResetPasswordToken(ctx context.Context, email, hashToken string) (string, error) {
-	user, err := u.FindByEmail(ctx, email)
+func (ur *userRepository) CreateResetPasswordToken(ctx context.Context, email, hashToken string) (string, error) {
+	user, err := ur.FindByEmail(ctx, email)
 	if err != nil || !user.Active.Bool {
-		return "", ErrEmailNotFound
+		return "", fail(ErrEmailNotFound)
 	}
 
-	userToken, err := u.createConfirmationToken(ctx, user, hashToken)
+	tx, err := ur.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
-		return "", ErrEmailNotFound
+		return "", fail(err)
 	}
+	defer tx.Rollback(ctx)
+
+	userToken, err := ur.createConfirmationToken(tx, ctx, user, hashToken)
+	if err != nil {
+		return "", fail(ErrEmailNotFound)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return "", fail(err)
+	}
+
 	return userToken.Token.String, nil
 }
 
-func (u *userRepository) createConfirmationToken(ctx context.Context, user *models.User, token string) (*models.UserConfirmationToken, error) {
+func (ur *userRepository) fetchUserDetailsByToken(ctx context.Context, token string) (userId pgtype.Numeric, totokenId pgtype.Numeric, err error) {
+	query := `
+	SELECT u.id, t.id FROM users u INNER JOIN users_conf_tokens t
+		ON u.id = t.user_id
+		WHERE u.active = false
+		AND t.confirmed = false
+		AND t.token = $1`
+	row := ur.db.QueryRow(ctx, query, token)
+	err = row.Scan(&userId, &totokenId)
+	return
+}
+
+func (ur *userRepository) ConfirmUserByToken(ctx context.Context, token string) error {
+	userId, totokenId, err := ur.fetchUserDetailsByToken(ctx, token)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return ErrInvalidTokenOrUserAlreadyConfirmed
+		}
+		return fail(err)
+	}
+
+	// Transaction scope
+	tx, err := ur.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fail(err)
+	}
+	defer tx.Rollback(ctx)
+
+	queryUpdateUser := `UPDATE users SET active = true, updated_at = now() WHERE id = $1`
+	_, err = tx.Exec(ctx, queryUpdateUser, userId)
+	if err != nil {
+		return fail(err)
+	}
+
+	queryUpdateToken := `UPDATE users_conf_tokens SET confirmed = true, updated_at = now() WHERE id = $1`
+	_, err = tx.Exec(ctx, queryUpdateToken, totokenId)
+	if err != nil {
+		return fail(err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fail(err)
+	}
+
+	return nil
+}
+
+func (ur *userRepository) createConfirmationToken(tx pgx.Tx, ctx context.Context, user *models.User, token string) (*models.UserConfirmationToken, error) {
 	var userTotken models.UserConfirmationToken
 	userTotken.UserId = user.Id
 	userTotken.Token = pgtype.Text{String: token, Valid: true}
@@ -98,78 +169,56 @@ func (u *userRepository) createConfirmationToken(ctx context.Context, user *mode
 		VALUES($1, $2)
 		RETURNING id, created_at`
 
-	row := u.db.QueryRow(ctx, query, userTotken.UserId, userTotken.Token)
+	row := tx.QueryRow(ctx, query, userTotken.UserId, userTotken.Token)
 	if err := row.Scan(&userTotken.Id, &userTotken.CreatedAt); err != nil {
-		return nil, err
+		return nil, fail(err)
 	}
 
 	return &userTotken, nil
 }
 
-func (u *userRepository) ConfirmUserByToken(ctx context.Context, token string) error {
-	query := `
-	SELECT u.id, t.id FROM users u INNER JOIN users_conf_tokens t
-		ON u.id = t.user_id
-		WHERE u.active = false
-		AND t.confirmed = false
-		AND t.token = $1`
-	var userId, totokenId pgtype.Numeric
-	row := u.db.QueryRow(ctx, query, token)
-	if err := row.Scan(&userId, &totokenId); err != nil {
-		if err == pgx.ErrNoRows {
-			return ErrInvalidTokenOrUserAlreadyConfirmed
-		}
-		return newRepositoryError(err)
-	}
-
-	queryUpdateUser := `UPDATE users SET active = true, updated_at = now() WHERE id = $1`
-	_, err := u.db.Exec(ctx, queryUpdateUser, userId)
-	if err != nil {
-		slog.Error(err.Error())
-		return newRepositoryError(err)
-	}
-
-	queryUpdateToken := `UPDATE users_conf_tokens SET confirmed = true, updated_at = now() WHERE id = $1`
-	_, err = u.db.Exec(ctx, queryUpdateToken, totokenId)
-	if err != nil {
-		return newRepositoryError(err)
-	}
-
-	return nil
-}
-
-func (u *userRepository) Create(ctx context.Context, email string, password string, hashToken string) (*models.User, string, error) {
+func (ur *userRepository) Create(ctx context.Context, email string, password string, hashToken string) (*models.User, string, error) {
 	var user models.User
 	user.Email = pgtype.Text{String: strings.TrimSpace(email), Valid: true}
 	user.Password = pgtype.Text{String: strings.TrimSpace(password), Valid: true}
+
+	tx, err := ur.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, "", fail(err)
+	}
+	defer tx.Rollback(ctx)
 
 	query := `
 	INSERT INTO users (email, password)
 		VALUES($1, $2)
 		RETURNING id, created_at`
 
-	row := u.db.QueryRow(ctx, query, user.Email, user.Password)
+	row := tx.QueryRow(ctx, query, user.Email, user.Password)
 	if err := row.Scan(&user.Id, &user.CreatedAt); err != nil {
 		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
-			return &user, "", ErrDuplicateEmail
+			return &user, "", fail(ErrDuplicateEmail)
 		}
-		return nil, "", newRepositoryError(err)
+		return nil, "", fail(err)
 	}
 
 	// generate token confirmation
-	userToken, err := u.createConfirmationToken(ctx, &user, hashToken)
+	userToken, err := ur.createConfirmationToken(tx, ctx, &user, hashToken)
 	if err != nil {
-		return nil, "", newRepositoryError(err)
+		return nil, "", fail(err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, "", fail(err)
 	}
 
 	return &user, userToken.Token.String, nil
 }
 
-func (u *userRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
+func (ur *userRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
 	var user models.User
 	query := `SELECT id, email, password, active FROM users WHERE email = $1`
 
-	row := u.db.QueryRow(ctx, query, email)
+	row := ur.db.QueryRow(ctx, query, email)
 	if err := row.Scan(
 		&user.Id,
 		&user.Email,
@@ -182,14 +231,14 @@ func (u *userRepository) FindByEmail(ctx context.Context, email string) (*models
 	return &user, nil
 }
 
-func (u *userRepository) GetUserConfirmationByToken(ctx context.Context, token string) (*models.UserConfirmationToken, error) {
+func (ur *userRepository) GetUserConfirmationByToken(ctx context.Context, token string) (*models.UserConfirmationToken, error) {
 	var userToken models.UserConfirmationToken
 	query := `
 	SELECT id, user_id, token, confirmed, created_at, updated_at
 		FROM users_conf_tokens
 		WHERE token = $1`
 
-	row := u.db.QueryRow(ctx, query, token)
+	row := ur.db.QueryRow(ctx, query, token)
 	if err := row.Scan(
 		&userToken.Id,
 		&userToken.UserId,
@@ -203,12 +252,12 @@ func (u *userRepository) GetUserConfirmationByToken(ctx context.Context, token s
 	return &userToken, nil
 }
 
-func (u *userRepository) NewUserConfirmationToken(ctx context.Context, user *models.User, token string) (*models.UserConfirmationToken, error) {
-	userToken, err := u.createConfirmationToken(ctx, user, token)
-	if err != nil {
-		slog.Error(err.Error())
-		return nil, newRepositoryError(err)
-	}
+// func (u *userRepository) NewUserConfirmationToken(ctx context.Context, user *models.User, token string) (*models.UserConfirmationToken, error) {
+// 	userToken, err := u.createConfirmationToken(ctx, user, token)
+// 	if err != nil {
+// 		slog.Error(err.Error())
+// 		return nil, newRepositoryError(err)
+// 	}
 
-	return userToken, nil
-}
+// 	return userToken, nil
+// }
