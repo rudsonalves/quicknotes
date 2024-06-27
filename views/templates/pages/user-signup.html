@@ -1,44 +1,38 @@
-{{define "title"}}Novo Usuário{{end}}
+{{ define "title" }}Novo cadastro{{end}}
 
-{{define "main"}}
-<form class="" user-form action="/user/signup" method="post">
-  <h1>Cadastro</h1>
-  <!-- {{with .FieldErrors}}
-  <ul class="errors">
-    {{range .}}
-    <li>{{.}}</li>
+{{ define "main" }}
+<form class="user-form" action="/user/signup" method="post">
+    <h1>Cadastrar-se</h1>
+    {{with .FieldErrors}}
+    <ul class="errors">
+        {{range .}}
+        <li>{{.}}</li>
+        {{end}}
+    </ul>
     {{end}}
-  </ul>
-  {{end}} -->
-  {{csrfField}}
-  <label for="email">E-mail</label>
-  {{with .FieldErrors.email}}
-  <label class="error">{{.}}</label>
-  {{end}}
-  <input type="email" name="email" id="email" value="{{.Email}}">
+    {{csrfField}}
+    <label for="email">E-mail</label>
+    <input name="email" type="text" id="email">
 
-  <label for="password">Senha</label>
-  {{with .FieldErrors.password}}
-  <label class="error">{{.}}</label>
-  {{end}}
-  <input type="password" name="password" id="password" value="{{.Password}}">
+    <label for="password">Senha</label>
+    <input type="password" name="password" id="password">
 
-  <input type="checkbox"><span>Mostrar senha</span>
+    <input type="checkbox"><span>Mostrar senha</span>
 
-  <button class="success" type="submit">Cadastrar</button>
+    <button class="success" type="submit">Cadastrar</button>
 
-  <p>Já é cadastrado? <a href="/user/signin">Faça o Login</a></p>
+    <p>Já é cadastrado? <a href="/user/signin">Faça o Login</a></p>
 </form>
 {{end}}
 
 {{define "script"}}
 <script>
-  $(":checkbox").click(function () {
-    if ($(this).is(":checked")) {
-      $("#password").attr("type", "text")
-    } else {
-      $("#password").attr("type", "password")
-    }
-  })
+    $(":checkbox").click(function () {
+        if ($(this).is(":checked")) {
+            $("#password").attr("type", "text")
+        } else {
+            $("#password").attr("type", "password")
+        }
+    })
 </script>
 {{end}}

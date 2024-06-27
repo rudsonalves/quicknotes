@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"html/template"
 
 	"github.com/rudsonalves/quicknotes/internal/models"
 	"github.com/rudsonalves/quicknotes/internal/validations"
@@ -16,22 +15,20 @@ type NoteResponse struct {
 }
 
 func newNoteResponseFromNote(note *models.Note) (resp NoteResponse) {
-	resp = NoteResponse{
-		Id:      note.Id.Int.Int64(),
-		Title:   note.Title.String,
-		Content: note.Content.String,
-		Color:   note.Color.String,
-	}
+
+	resp.Id = note.Id.Int.Int64()
+	resp.Title = note.Title.String
+	resp.Content = note.Content.String
+	resp.Color = note.Color.String
 	return
 }
 
 type NoteRequest struct {
-	Id        int64
-	Title     string
-	Content   string
-	Color     string
-	Colors    []string
-	CSRFField template.HTML
+	Id      int64
+	Title   string
+	Content string
+	Color   string
+	Colors  []string
 	validations.FormValidator
 }
 
@@ -54,8 +51,8 @@ func newNoteRequest(note *models.Note) (req NoteRequest) {
 	if note != nil {
 		req.Id = note.Id.Int.Int64()
 		req.Title = note.Title.String
-		req.Content = note.Content.String
 		req.Color = note.Color.String
+		req.Content = note.Content.String
 	} else {
 		req.Color = req.Colors[2]
 	}

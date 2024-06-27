@@ -24,21 +24,21 @@ func LoadRoutes(
 	noteRepo := repositories.NewNoteRepository(dbPool)
 	userRepo := repositories.NewUserRepository(dbPool)
 
-	render := render.NewRenderTemplate(sessionManager)
+	render := render.NewRender(sessionManager)
 
-	noteHandler := handlers.NewNoteHandlers(sessionManager, noteRepo, render)
-	userHandler := handlers.NewUserHandlers(sessionManager, userRepo, render, mailservice)
+	noteHandler := handlers.NewNoteHandler(sessionManager, noteRepo, render)
+	userHandler := handlers.NewUserHandler(sessionManager, userRepo, render, mailservice)
 
-	authMiddleware := handlers.NewAuthMiddleware(sessionManager)
+	authMidd := handlers.NewAuthMiddleware(sessionManager)
 
 	mux.HandleFunc("GET /", handlers.NewHomeHandler(render).HomeHandler)
 
-	mux.Handle("GET /note", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteList)))
-	mux.Handle("GET /note/{id}", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteView)))
-	mux.Handle("GET /note/new", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteNew)))
-	mux.Handle("POST /note", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteSave)))
-	mux.Handle("DELETE /note/{id}", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteDelete)))
-	mux.Handle("GET /note/{id}/edit", authMiddleware.RequireAuth(handlers.HandlerWithError(noteHandler.NoteEdit)))
+	mux.Handle("GET /note", authMidd.RequireAuth(handlers.HandlerWithError(noteHandler.NoteList)))
+	mux.Handle("GET /note/{id}", authMidd.RequireAuth(handlers.HandlerWithError(noteHandler.NoteView)))
+	mux.Handle("GET /note/new", authMidd.RequireAuth(handlers.HandlerWithError(noteHandler.NoteNew)))
+	mux.Handle("POST /note", authMidd.RequireAuth(handlers.HandlerWithError(noteHandler.NoteSave)))
+	mux.Handle("DELETE /note/{id}", authMidd.RequireAuth(handlers.HandlerWithError(noteHandler.NoteDelete)))
+	mux.Handle("GET /note/{id}/edit", authMidd.RequireAuth(handlers.HandlerWithError(noteHandler.NoteEdit)))
 
 	mux.Handle("GET /user/signup", handlers.HandlerWithError(userHandler.SignupForm))
 	mux.Handle("POST /user/signup", handlers.HandlerWithError(userHandler.Signup))
@@ -48,11 +48,17 @@ func LoadRoutes(
 
 	mux.Handle("GET /user/signout", handlers.HandlerWithError(userHandler.Signout))
 
-	mux.Handle("GET /user/forgetpassword", handlers.HandlerWithError(userHandler.ForgetPassowrd))
+	mux.Handle("GET /user/forgetpassword", handlers.HandlerWithError(userHandler.ForgetPasswordForm))
+	mux.Handle("POST /user/forgetpassword", handlers.HandlerWithError(userHandler.ForgetPassword))
+	mux.Handle("POST /user/password", handlers.HandlerWithError(userHandler.ResetPassword))
+	mux.Handle("GET /user/password/{token}", handlers.HandlerWithError(userHandler.ResetPasswordForm))
 
-	mux.Handle("GET /me", authMiddleware.RequireAuth(handlers.HandlerWithError(userHandler.Me)))
+	mux.Handle("GET /me", authMidd.RequireAuth(handlers.HandlerWithError(userHandler.Me)))
 
 	mux.Handle("GET /confirmation/{token}", handlers.HandlerWithError(userHandler.Confirm))
+
+	mux.Handle("GET /confirmation", handlers.HandlerWithError(userHandler.NewConfirmationForm))
+	mux.Handle("POST /confirmation", handlers.HandlerWithError(userHandler.NewConfirmation))
 
 	return mux
 }

@@ -1,47 +1,45 @@
-{{define "title"}}Fazer Login{{end}}
+{{ define "title" }}Entrar no sistema{{end}}
 
-{{define "main"}}
-<form class="" user-form action="/user/signin" method="post">
-  <h1>Entrar</h1>
-  {{with .FieldErrors}}
-  <ul class="errors">
-    {{range .}}
-    <li>{{.}}</li>
+{{ define "main" }}
+<form class="user-form" action="/user/signin" method="post">
+    <h1>Entrar no sistema</h1>
+    {{with .Flash}}
+    <p class="success">{{.}}</p>
     {{end}}
-  </ul>
-  {{end}}
-  {{csrfField}}
-  <label for="email">E-mail</label>
-  <!-- {{with .FieldErrors.email}}
-  <label class="error">{{.}}</label>
-  {{end}} -->
-  <input type="email" name="email" id="email" value="{{.Email}}">
+    {{with .FieldErrors}}
+    <ul class="errors">
+        {{range .}}
+        <li>{{.}}</li>
+        {{end}}
+    </ul>
+    {{end}}
+    {{csrfField}}
+    <label for="email">E-mail</label>
+    <input name="email" type="text" id="email">
 
-  <label for="password">Senha</label>
-  <!-- {{with .FieldErrors.password}}
-  <label class="error">{{.}}</label>
-  {{end}} -->
-  <input type="password" name="password" id="password" value="{{.Password}}">
+    <label for="password">Senha</label>
+    <input type="password" name="password" id="password">
 
-  <input type="checkbox"><span>Mostrar senha</span>
+    <input type="checkbox"><span>Mostrar senha</span>
 
-  <button class="success" type="submit">Entrar</button>
+    <button class="success" type="submit">Entrar</button>
 
-  <p class="space-between">
-    <a href="/user/signup">Cadastrar</a>
-    <a href="/user/forgetpassword">Recuperar Senha</a>
-  </p>
+    <p class="space-between">
+        <a href="/user/signup">Cadastrar-se</a>
+        <a href="/user/forgetpassword">Esqueci minha senha</a>
+    </p>
 </form>
 {{end}}
 
 {{define "script"}}
 <script>
-  $(":checkbox").click(function () {
-    if ($(this).is(":checked")) {
-      $("#password").attr("type", "text")
-    } else {
-      $("#password").attr("type", "password")
-    }
-  })
+    $("p.success").fadeOut(2000)
+    $(":checkbox").click(function () {
+        if ($(this).is(":checked")) {
+            $("#password").attr("type", "text")
+        } else {
+            $("#password").attr("type", "password")
+        }
+    })
 </script>
 {{end}}

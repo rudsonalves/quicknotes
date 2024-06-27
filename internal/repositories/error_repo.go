@@ -4,6 +4,6 @@ type RepositoriesError struct {
 	error
 }
 
-func newRepositoriesError(err error) error {
-	return &RepositoriesError{error: err}
+func newRepositoryError(err error) error {
+	return RepositoriesError{error: err}
 }

@@ -26,10 +26,12 @@ type Config struct {
 	MailFrom     string `env:"EMAIL_FROM,nao-responder@quick.com"`
 }
 
-func (c Config) GetLevelLog() slog.Level {
-	switch strings.ToLower(c.LevelLog) {
+func (cfg Config) GetLevelLog() slog.Level {
+	switch strings.ToLower(cfg.LevelLog) {
 	case "debug":
 		return slog.LevelDebug
+	case "info":
+		return slog.LevelInfo
 	case "error":
 		return slog.LevelError
 	case "warn":
@@ -39,7 +41,7 @@ func (c Config) GetLevelLog() slog.Level {
 	}
 }
 
-func (c Config) DBUrl() string {
+func (c Config) DBConnURL() string {
 	// postgres://DBUser:DBPassword@DBHost:DBPort/DBName
 	return fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -51,8 +53,8 @@ func (c Config) DBUrl() string {
 	)
 }
 
-func (c Config) SPrint() (envs string) {
-	v := reflect.ValueOf(c)
+func (cfg Config) SPrint() (envs string) {
+	v := reflect.ValueOf(cfg)
 	t := v.Type()
 
 	for index := 0; index < v.NumField(); index++ {
@@ -65,8 +67,8 @@ func (c Config) SPrint() (envs string) {
 	return
 }
 
-func (c Config) loadFromEnv() (config Config) {
-	v := reflect.ValueOf(c)
+func (cfg Config) loadFromEnv() (config Config) {
+	v := reflect.ValueOf(cfg)
 	t := v.Type()
 
 	for index := 0; index < v.NumField(); index++ {
@@ -87,9 +89,9 @@ func (c Config) loadFromEnv() (config Config) {
 	return
 }
 
-func (c Config) validate() {
+func (cfg Config) validate() {
 	var validateMsg string
-	v := reflect.ValueOf(c)
+	v := reflect.ValueOf(cfg)
 	t := v.Type()
 
 	for index := 0; index < v.NumField(); index++ {
@@ -108,12 +110,10 @@ func (c Config) validate() {
 
 // Load server values in .env file
 func loadConfig() (config Config) {
-	err := godotenv.Load()
-	if err != nil {
+	if err := godotenv.Load(); err != nil {
 		panic(err)
 	}
 
-	config = Config{}
 	config = config.loadFromEnv()
 	config.validate()
 

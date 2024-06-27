@@ -21,7 +21,7 @@ func main() {
 
 	slog.SetDefault(newLogger(os.Stderr, config.GetLevelLog()))
 
-	dbPool, err := pgxpool.New(context.Background(), config.DBUrl())
+	dbPool, err := pgxpool.New(context.Background(), config.DBConnURL())
 	if err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)
@@ -37,7 +37,7 @@ func main() {
 		UserName: config.MailUserName,
 		Password: config.MailUserPass,
 		From:     config.MailFrom}
-	mailservice := mailer.NewSmtpMailService(smtp)
+	mailservice := mailer.NewSMTPMailService(smtp)
 
 	sessionManager := scs.New()
 	sessionManager.Lifetime = time.Hour
@@ -49,6 +49,7 @@ func main() {
 
 	mux := LoadRoutes(dbPool, sessionManager, mailservice)
 
+	slog.Info(fmt.Sprintf("Server running in port %s\n", config.ServerPort))
 	if err := http.ListenAndServe(
 		fmt.Sprintf("%s:%s", config.Hostname, config.ServerPort),
 		sessionManager.LoadAndSave(csrfMiddleware(mux))); err != nil {

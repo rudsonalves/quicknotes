@@ -15,15 +15,11 @@ type smtpMailService struct {
 	dialer *gomail.Dialer
 }
 
-func NewSmtpMailService(cfg SMTPConfig) MailService {
+func NewSMTPMailService(cfg SMTPConfig) MailService {
 	dialer := gomail.NewDialer(cfg.Host, cfg.Port, cfg.UserName, cfg.Password)
-	return &smtpMailService{
-		from:   cfg.From,
-		dialer: dialer,
-	}
+	return &smtpMailService{from: cfg.From, dialer: dialer}
 }
 
-// Send implements MailService.
 func (ss *smtpMailService) Send(msg MailMessage) error {
 	m := gomail.NewMessage()
 	m.SetHeader("From", ss.from)
@@ -37,6 +33,5 @@ func (ss *smtpMailService) Send(msg MailMessage) error {
 	}
 	// m.Attach("/home/Alex/lolcat.jpg")
 
-	// Send the email to Bob, Cora and Dan.
 	return ss.dialer.DialAndSend(m)
 }
