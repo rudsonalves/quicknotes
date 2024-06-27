@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/gorilla/csrf"
@@ -19,15 +20,25 @@ func NewRender(session *scs.SessionManager) *RenderTemplate {
 	return &RenderTemplate{session: session}
 }
 
-func getTemplatePageFiles(t *template.Template, page string) (*template.Template, error) {
-	return t.ParseFS(views.Files, "templates/base.html", "templates/pages/"+page)
+func getTemplatePageFiles(t *template.Template, page string, useFS bool) (*template.Template, error) {
+	if useFS {
+		return t.ParseFS(views.Files, "templates/base.html", "templates/pages/"+page)
+	}
+	files := []string{
+		"views/templates/base.html",
+		"views/templates/pages/" + page}
+
+	return t.ParseFiles(files...)
+}
+
+func getTemplateMailFiles(mailTmpl string, useFS bool) (*template.Template, error) {
+	if useFS {
+		return template.ParseFS(views.Files, "templates/mails/"+mailTmpl)
+	}
+	return template.ParseFiles("views/templates/mails/" + mailTmpl)
 }
 
 func (rt *RenderTemplate) RenderPage(w http.ResponseWriter, r *http.Request, status int, page string, data any) error {
-	// files := []string{
-	// 	"views/templates/base.html",
-	// 	"views/templates/pages/" + page}
-
 	t := template.New("").Funcs(template.FuncMap{
 		"csrfField": func() template.HTML {
 			return csrf.TemplateField(r)
@@ -42,7 +53,9 @@ func (rt *RenderTemplate) RenderPage(w http.ResponseWriter, r *http.Request, sta
 			return rt.session.GetString(r.Context(), "userEmail")
 		},
 	})
-	t, err := getTemplatePageFiles(t, page)
+
+	useFS := !strings.Contains(r.Host, "localhost")
+	t, err := getTemplatePageFiles(t, page, useFS)
 	if err != nil {
 		return err
 	}
@@ -56,8 +69,9 @@ func (rt *RenderTemplate) RenderPage(w http.ResponseWriter, r *http.Request, sta
 	return nil
 }
 
-func (rt *RenderTemplate) RenderMailBody(mailTempl string, data any) ([]byte, error) {
-	t, err := template.ParseFiles("views/templates/mails/" + mailTempl)
+func (rt *RenderTemplate) RenderMailBody(r *http.Request, mailTempl string, data any) ([]byte, error) {
+	useFS := !strings.Contains(r.Host, "localhost")
+	t, err := getTemplateMailFiles(mailTempl, useFS)
 	if err != nil {
 		slog.Error(err.Error())
 		return nil, err

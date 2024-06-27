@@ -1,6 +1,8 @@
 package main
 
 import (
+	"io/fs"
+	"log/slog"
 	"net/http"
 
 	"github.com/alexedwards/scs/v2"
@@ -9,6 +11,7 @@ import (
 	"github.com/rudsonalves/quicknotes/internal/mailer"
 	"github.com/rudsonalves/quicknotes/internal/render"
 	"github.com/rudsonalves/quicknotes/internal/repositories"
+	"github.com/rudsonalves/quicknotes/views"
 )
 
 func LoadRoutes(
@@ -17,7 +20,13 @@ func LoadRoutes(
 	mailservice mailer.MailService) http.Handler {
 	mux := http.NewServeMux()
 
-	staticHandler := http.FileServer(http.Dir("views/static/"))
+	staticFS, err := fs.Sub(views.Files, "static")
+	if err != nil {
+		slog.Error(err.Error())
+		panic(err)
+	}
+
+	staticHandler := http.FileServerFS(staticFS)
 
 	mux.Handle("GET /static/", http.StripPrefix("/static/", staticHandler))
 
