@@ -151,7 +151,7 @@ func (uh *userHandler) Signup(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// Send email with account confirmation link
-	body, err := uh.render.RenderMailBody("confirmation.html", confirmationToken)
+	body, err := uh.render.RenderMailBody(r, "confirmation.html", confirmationToken)
 	if err != nil {
 		return err
 	}
@@ -209,7 +209,7 @@ func (uh *userHandler) ForgetPassword(w http.ResponseWriter, r *http.Request) er
 	}
 
 	// send email with link to reset password
-	body, err := uh.render.RenderMailBody("forgetpassword.html", token)
+	body, err := uh.render.RenderMailBody(r, "forgetpassword.html", token)
 	if err != nil {
 		return err
 	}
