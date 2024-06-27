@@ -8,6 +8,7 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/gorilla/csrf"
+	"github.com/rudsonalves/quicknotes/views"
 )
 
 type RenderTemplate struct {
@@ -18,10 +19,14 @@ func NewRender(session *scs.SessionManager) *RenderTemplate {
 	return &RenderTemplate{session: session}
 }
 
+func getTemplatePageFiles(t *template.Template, page string) (*template.Template, error) {
+	return t.ParseFS(views.Files, "templates/base.html", "templates/pages/"+page)
+}
+
 func (rt *RenderTemplate) RenderPage(w http.ResponseWriter, r *http.Request, status int, page string, data any) error {
-	files := []string{
-		"views/templates/base.html",
-		"views/templates/pages/" + page}
+	// files := []string{
+	// 	"views/templates/base.html",
+	// 	"views/templates/pages/" + page}
 
 	t := template.New("").Funcs(template.FuncMap{
 		"csrfField": func() template.HTML {
@@ -37,7 +42,7 @@ func (rt *RenderTemplate) RenderPage(w http.ResponseWriter, r *http.Request, sta
 			return rt.session.GetString(r.Context(), "userEmail")
 		},
 	})
-	t, err := t.ParseFiles(files...)
+	t, err := getTemplatePageFiles(t, page)
 	if err != nil {
 		return err
 	}
