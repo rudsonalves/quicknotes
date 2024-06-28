@@ -19,11 +19,11 @@ type Config struct {
 	DBPassword   string `env:"DB_PASSWORD,required"`
 	DBName       string `env:"DB_NAME,required"`
 	DBUser       string `env:"DB_USER,required"`
-	MailHost     string `env:"EMAIL_HOST,required"`
-	MailPort     string `env:"EMAIL_PORT,required"`
-	MailUserName string `env:"EMAIL_USER_NAME,required"`
-	MailUserPass string `env:"EMAIL_USER_PASS,required"`
-	MailFrom     string `env:"EMAIL_FROM,nao-responder@quick.com"`
+	MailHost     string `env:"SMTP_HOST,required"`
+	MailPort     string `env:"SMTP_PORT,required"`
+	MailUserName string `env:"SMTP_USER_NAME,required"`
+	MailUserPass string `env:"SMTP_USER_PASS,required"`
+	MailFrom     string `env:"SMTP_FROM,nao-responder@quick.com"`
 }
 
 func (cfg Config) GetLevelLog() slog.Level {
