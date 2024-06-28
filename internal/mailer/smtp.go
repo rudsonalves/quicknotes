@@ -24,14 +24,12 @@ func (ss *smtpMailService) Send(msg MailMessage) error {
 	m := gomail.NewMessage()
 	m.SetHeader("From", ss.from)
 	m.SetHeader("To", msg.To...)
-	// m.SetAddressHeader("Cc", "dan@example.com", "Dan")
 	m.SetHeader("Subject", msg.Subject)
 	if msg.IsHtml {
 		m.SetBody("text/html", string(msg.Body))
 	} else {
 		m.SetBody("text/plain", string(msg.Body))
 	}
-	// m.Attach("/home/Alex/lolcat.jpg")
 
 	return ss.dialer.DialAndSend(m)
 }

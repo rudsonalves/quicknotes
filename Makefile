@@ -11,8 +11,8 @@ exp:
 docker_up:
 	docker compose up
 
-# db_down:
-# 	docker compose down
+docker_down:
+ 	docker compose down
 
 connect_postgres:
 	docker exec -it quicknotes-db-1 bash -c "psql -h localhost -p 5432 -U postgres -d postgres"

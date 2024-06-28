@@ -151,16 +151,19 @@ func (uh *userHandler) Signup(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// Send email with account confirmation link
-	body, err := uh.render.RenderMailBody(r, "confirmation.html", confirmationToken)
+	rdata := map[string]string{"token": confirmationToken}
+	body, err := uh.render.RenderMailBody(r, "confirmation.html", rdata)
 	if err != nil {
 		return err
 	}
-	uh.mail.Send(mailer.MailMessage{
+	if err := uh.mail.Send(mailer.MailMessage{
 		To:      []string{data.Email},
 		Subject: "Confirmação de Cadastro",
 		IsHtml:  true,
 		Body:    body,
-	})
+	}); err != nil {
+		return err
+	}
 
 	return uh.render.RenderPage(w, r, http.StatusOK, "user-signup-success.html", confirmationToken)
 }
@@ -209,7 +212,8 @@ func (uh *userHandler) ForgetPassword(w http.ResponseWriter, r *http.Request) er
 	}
 
 	// send email with link to reset password
-	body, err := uh.render.RenderMailBody(r, "forgetpassword.html", token)
+	rdata := map[string]string{"token": token}
+	body, err := uh.render.RenderMailBody(r, "forgetpassword.html", rdata)
 	if err != nil {
 		return err
 	}
@@ -292,58 +296,3 @@ func (uh *userHandler) ResetPassword(w http.ResponseWriter, r *http.Request) err
 	http.Redirect(w, r, "/user/signin", http.StatusSeeOther)
 	return nil
 }
-
-// func (uh *userHandler) NewConfirmation(w http.ResponseWriter, r *http.Request) error {
-// 	email := strings.TrimSpace(r.PostFormValue("email"))
-// 	if err := r.ParseForm(); err != nil {
-// 		slog.Error(err.Error())
-// 		return err
-// 	}
-
-// 	userRequest := newUserRequest(email, "")
-
-// 	if !utils.IsEmailValid(userRequest.Email) {
-// 		userRequest.AddFieldError("email", "Este email é inválido")
-// 	}
-
-// 	if !userRequest.Valid() {
-// 		return uh.render.RenderPage(w, r, http.StatusUnprocessableEntity, "new-confirm.html", userRequest)
-// 	}
-
-// 	user, err := uh.repo.FindByEmail(r.Context(), email)
-// 	if err != nil || user.Active.Bool {
-// 		slog.Error(err.Error())
-// 		userRequest.AddFieldError("email", "Usuário não possui cadastro ou já confirmou cadastro anteriormente.")
-// 		return uh.render.RenderPage(w, r, http.StatusUnprocessableEntity, "new-confirm.html", userRequest)
-// 	}
-
-// 	token := utils.GenerateTokenKey()
-// 	userToken, err := uh.repo.NewUserConfirmationToken(r.Context(), user, token)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	body, err := uh.render.RenderMailBody("confirmation.html", userToken.Token.String)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	// Send confirmation email
-// 	err = uh.mail.Send(mailer.MailMessage{
-// 		To:      []string{user.Email.String},
-// 		Subject: "Email de Confirmação de Cadastro",
-// 		IsHtml:  true,
-// 		Body:    body,
-// 	})
-
-// 	if err != nil {
-// 		slog.Error(err.Error())
-// 		return err
-// 	}
-
-// 	return uh.render.RenderPage(w, r, http.StatusOK, "confirmation.html", userToken.Token.String)
-// }
-
-// func (uh *userHandler) NewConfirmationForm(w http.ResponseWriter, r *http.Request) error {
-// 	return uh.render.RenderPage(w, r, http.StatusOK, "new_confirmation.html", UserRequest{})
-// }
