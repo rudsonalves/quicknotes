@@ -12,7 +12,16 @@ docker_up:
 	docker compose up
 
 docker_down:
- 	docker compose down
+	docker compose down
+
+docker_prod_up:
+	docker compose -f ./docker-compose-prod.yml up
+
+docker_prod_up_build:
+	docker compose -f ./docker-compose-prod.yml up --build
+
+docker_prod_down:
+	docker compose -f ./docker-compose-prod.yml down
 
 connect_postgres:
 	docker exec -it quicknotes-db-1 bash -c "psql -h localhost -p 5432 -U postgres -d postgres"

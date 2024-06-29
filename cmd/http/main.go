@@ -45,13 +45,14 @@ func main() {
 	// Run cleanup every 30 minutes.
 	pgxstore.NewWithCleanupInterval(dbPool, 30*time.Minute)
 
-	csrfMiddleware := csrf.Protect([]byte("32-byte-long-auth-key"))
+	csrfMiddleware := csrf.Protect([]byte(config.CSRFKey))
 
 	mux := LoadRoutes(dbPool, sessionManager, mailservice)
 
-	slog.Info(fmt.Sprintf("Server running in port %s\n", config.ServerPort))
+	addr := fmt.Sprintf(":%s", config.ServerPort)
+	slog.Info(fmt.Sprintf("Server running in %s", addr))
 	if err := http.ListenAndServe(
-		fmt.Sprintf("%s:%s", config.Hostname, config.ServerPort),
+		addr,
 		sessionManager.LoadAndSave(csrfMiddleware(mux))); err != nil {
 		panic(err)
 	}
