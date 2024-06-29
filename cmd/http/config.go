@@ -12,18 +12,19 @@ import (
 
 type Config struct {
 	Hostname     string `env:"HOSTNAME,localhost"`
-	ServerPort   string `env:"SERVER_PORT,5050"`
-	LevelLog     string `env:"LEVEL_LOG,info"`
-	DBHost       string `env:"DB_HOST,required"`
-	DBPort       string `env:"DB_PORT,required"`
-	DBPassword   string `env:"DB_PASSWORD,required"`
-	DBName       string `env:"DB_NAME,required"`
-	DBUser       string `env:"DB_USER,required"`
-	MailHost     string `env:"SMTP_HOST,required"`
-	MailPort     string `env:"SMTP_PORT,required"`
-	MailUserName string `env:"SMTP_USER_NAME,required"`
-	MailUserPass string `env:"SMTP_USER_PASS,required"`
-	MailFrom     string `env:"SMTP_FROM,nao-responder@quick.com"`
+	ServerPort   string `env:"QNS_SERVER_PORT,5000"`
+	LevelLog     string `env:"QNS_LEVEL_LOG,info"`
+	DBHost       string `env:"QNS_DB_HOST,required"`
+	DBPort       string `env:"QNS_DB_PORT,required"`
+	DBName       string `env:"QNS_DB_NAME,required"`
+	DBPassword   string `env:"POSTGRES_PASSWORD,required"`
+	DBUser       string `env:"QNS_DB_USER,required"`
+	MailHost     string `env:"QNS_SMTP_HOST,required"`
+	MailPort     string `env:"QNS_SMTP_PORT,required"`
+	MailUserName string `env:"QNS_SMTP_USER_NAME,required"`
+	MailUserPass string `env:"QNS_SMTP_USER_PASS,required"`
+	MailFrom     string `env:"QNS_SMTP_FROM,nao-responder@quick.com"`
+	CSRFKey      string `env:"QNS_CSRF_KEY,required"`
 }
 
 func (cfg Config) GetLevelLog() slog.Level {
