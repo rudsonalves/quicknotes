@@ -71,7 +71,7 @@ func (rt *RenderTemplate) RenderPage(w http.ResponseWriter, r *http.Request, sta
 
 func (rt *RenderTemplate) RenderMailBody(r *http.Request, mailTempl string, data map[string]string) ([]byte, error) {
 	useFS := !strings.Contains(r.Host, "localhost")
-	data["hostAddr"] = "http://" + r.Host
+	data["hostAddr"] = "https://" + r.Host
 	t, err := getTemplateMailFiles(mailTempl, useFS)
 	if err != nil {
 		slog.Error(err.Error())
