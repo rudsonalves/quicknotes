@@ -17,23 +17,21 @@ services:
     # environment:
     ports:
       - 5432:5432
-    environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_USER: ${DB_USER}
-      DB_NAME: ${DB_NAME}
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      SMTP_HOST: ${QNS_SMTP_HOST}
-      SMTP_PORT: ${QNS_SMTP_PORT}
+    env_file:
+      - .env
 
   adminer:
     image: adminer
     restart: always
     ports:
       - 8080:8080
+    env_file:
+      - .env
 
   mailhog:
     image: mailhog/mailhog
     ports:
       - 1025:1025
       - 8025:8025
+    env_file:
+      - .env

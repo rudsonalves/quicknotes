@@ -11,14 +11,13 @@ import (
 )
 
 type Config struct {
-	Hostname     string `env:"HOSTNAME,localhost"`
+	DBPassword   string `env:"POSTGRES_PASSWORD,required"`
+	DBUser       string `env:"POSTGRES_USER,required"`
 	ServerPort   string `env:"QNS_SERVER_PORT,5000"`
 	LevelLog     string `env:"QNS_LEVEL_LOG,info"`
 	DBHost       string `env:"QNS_DB_HOST,required"`
 	DBPort       string `env:"QNS_DB_PORT,required"`
 	DBName       string `env:"QNS_DB_NAME,required"`
-	DBPassword   string `env:"POSTGRES_PASSWORD,required"`
-	DBUser       string `env:"QNS_DB_USER,required"`
 	MailHost     string `env:"QNS_SMTP_HOST,required"`
 	MailPort     string `env:"QNS_SMTP_PORT,required"`
 	MailUserName string `env:"QNS_SMTP_USER_NAME,required"`

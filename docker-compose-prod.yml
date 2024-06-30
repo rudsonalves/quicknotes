@@ -3,14 +3,11 @@ version: '3.9'
 services:
   db:
     image: postgres:12.19-alpine
-    environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_USER: ${QNS_DB_USER}
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -d ${QNS_DB_USER} -U ${QNS_DB_USER}"
+          "pg_isready -d ${POSTGRES_USER} -U ${POSTGRES_USER}"
         ]
       interval: 10s
       timeout: 5s
@@ -20,6 +17,8 @@ services:
       - quicknotes
     ports:
       - ${QNS_DB_PORT}:${QNS_DB_PORT}
+    env_file:
+      - .env
 
   migrate:
     image: migrate/migrate
@@ -32,16 +31,14 @@ services:
         "-path",
         "/migrations/",
         "-database",
-        "postgres://${QNS_DB_USER}:${POSTGRES_PASSWORD}@db:5432/${QNS_DB_NAME}?sslmode=disable",
+        "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${QNS_DB_PORT}/${QNS_DB_NAME}?sslmode=disable",
         "up"
       ]
-    environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      QNS_DB_USER: ${QNS_DB_USER}
-      QNS_DB_NAME: ${QNS_DB_NAME}
     depends_on:
       db:
         condition: service_healthy
+    env_file:
+      - .env
 
   server:
     build:
@@ -52,17 +49,8 @@ services:
     ports:
       - ${QNS_SERVER_PORT}:${QNS_SERVER_PORT}
     depends_on: [ migrate ]
-    environment:
-      QNS_DB_USER: ${QNS_DB_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      QNS_DB_NAME: ${QNS_DB_NAME}
-      QNS_DB_HOST: ${QNS_DB_HOST}
-      QNS_DB_PORT: ${QNS_DB_PORT}
-      QNS_SMTP_HOST: ${QNS_SMTP_HOST}
-      QNS_SMTP_PORT: ${QNS_SMTP_PORT}
-      QNS_SMTP_USER_NAME: ${QNS_SMTP_USER_NAME}
-      QNS_SMTP_USER_PASS: ${QNS_SMTP_USER_PASS}
-      QNS_SMTP_FROM: ${QNS_SMTP_FROM}
+    env_file:
+      - .env
 
 networks:
   quicknotes:
