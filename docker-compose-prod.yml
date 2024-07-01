@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   db:
-    image: postgres:12.19-alpine
+    image: postgres:alpine
     healthcheck:
       test:
         [
@@ -52,5 +52,21 @@ services:
     env_file:
       - .env
 
+  caddy:
+    image: caddy:alpine
+    networks:
+      - quicknotes
+    ports:
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+    depends_on: [ server ]
+
 networks:
   quicknotes:
+
+
+volumes:
+  caddy_data:
+  caddy_config:
