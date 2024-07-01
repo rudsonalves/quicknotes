@@ -51,10 +51,15 @@ func main() {
 
 	addr := fmt.Sprintf(":%s", config.ServerPort)
 	slog.Info(fmt.Sprintf("Server running in %s", addr))
-	if err := http.ListenAndServeTLS(
+	// if err := http.ListenAndServeTLS(
+	// 	addr,
+	// 	"cer.cer",
+	// 	"cer.key",
+	// 	sessionManager.LoadAndSave(csrfMiddleware(mux))); err != nil {
+	// 	panic(err)
+	// }
+	if err := http.ListenAndServe(
 		addr,
-		"cer.cer",
-		"cer.key",
 		sessionManager.LoadAndSave(csrfMiddleware(mux))); err != nil {
 		panic(err)
 	}
